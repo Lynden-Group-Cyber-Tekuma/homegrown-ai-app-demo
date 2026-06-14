@@ -124,16 +124,18 @@ async def test_translated_pii_triggers_modify(ps_client, scenarios, key, lang, e
     assert result.action == "modify", (
         f"{key}/{lang}: expected action=modify, got {result.action!r}"
     )
+    # Entity names live in findings, not violations (violations hold generic categories)
     detected = set()
-    for v in result.violations or []:
-        if isinstance(v, dict):
-            detected.add(v.get("type") or v.get("entity_type") or "")
-        elif isinstance(v, str):
-            detected.add(v)
-    detected.discard("")
+    findings = result.raw.get("result", {}).get("prompt", {}).get("findings", {})
+    for detections in findings.values():
+        if not isinstance(detections, list):
+            continue
+        for d in detections:
+            if isinstance(d, dict) and "entity_type" in d:
+                detected.add(d["entity_type"])
     for entity in expected_entities:
         assert entity in detected, (
-            f"{key}/{lang}: expected entity {entity!r} not in violations {detected}"
+            f"{key}/{lang}: expected entity {entity!r} not in findings {detected}"
         )
 
 
