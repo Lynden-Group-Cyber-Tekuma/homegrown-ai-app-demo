@@ -74,3 +74,7 @@ Tests use SQLite in-memory via `conftest.py` — no running Postgres or LiteLLM 
 - `MAX_FILE_SIZE_MB` — upload size limit (default 10 MB)
 - `SANITIZE_MAX_PER_MINUTE` — rate limit for file scans per user (default 5)
 - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `PERPLEXITY_API_KEY` / `OPENROUTER_API_KEY` — shared provider keys (can also be set via Admin → Settings)
+
+## Session Log
+
+- **2026-06-09** — Session log section added; CLAUDE.md pre-existed.

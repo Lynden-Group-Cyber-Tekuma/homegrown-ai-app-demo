@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-06-14]
+### Added
+- Language toggle (EN / 日本語) in Demo panel: Japan PII scenario and Prompt Injection scenarios each have an EN/日本語 switcher; selecting Japanese swaps the preview text and loads the Japanese prompt into chat/compare; toggle only appears on scenarios that carry a Japanese translation in their metadata — @ori.tabac
+### Changed
+- Japan PII demo prompt updated with Japanese identifier types: bank account number, driver's license, corporate number, personal number (マイナンバー), passport, residence card (在留カード), resident register number (住民票コード), and social insurance number; both English and Japanese variants stored in scenario metadata — @ori.tabac
+
 ## [2026-05-28]
 ### Removed
 - `PUBLIC_API_ENABLED` feature and `POST /v1/responses` endpoint removed entirely: env vars (`PUBLIC_API_ENABLED`, `PUBLIC_API_MAX_PROMPT_TOKENS`, `PUBLIC_API_MAX_OUTPUT_TOKENS`, `PUBLIC_API_ALLOW_SYSTEM_PROMPT`), the endpoint handler, the `_ensure_public_api_enabled()` helper, and the four `PublicResponse*` Pydantic schemas (`PublicResponseRequest`, `PublicResponseOutput`, `PublicResponseUsage`, `PublicResponseOut`) have all been deleted; README documentation for the public test API has been removed — @pj.norris
