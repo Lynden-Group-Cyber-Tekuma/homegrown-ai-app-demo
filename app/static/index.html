@@ -350,9 +350,8 @@ pre.cv-code { background: var(--surface2); border: 1px solid var(--border); bord
 #demoBtn:hover { background:rgba(108,99,255,0.18); }
 .demo-lang-picker { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
 .demo-lang-picker-label { font-size:11px; font-weight:600; color:var(--text-muted); }
-.demo-lang-btn { font-size:11px; font-weight:600; padding:2px 9px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text-muted); cursor:pointer; transition:all 0.15s; font-family:var(--font); }
-.demo-lang-btn:hover { border-color:var(--accent); color:var(--accent); }
-.demo-lang-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(108,99,255,0.12); }
+.demo-lang-select { font-size:11px; font-weight:600; padding:2px 7px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text-muted); cursor:pointer; font-family:var(--font); outline:none; }
+.demo-lang-select:hover, .demo-lang-select:focus { border-color:var(--accent); color:var(--accent); }
 #fileScanToolbarBtn { font-size:11px; font-weight:600; padding:5px 12px; border:1px solid rgba(46,204,113,0.5); border-radius:8px; color:var(--green); background:rgba(46,204,113,0.07); cursor:pointer; transition:all 0.15s; white-space:nowrap; }
 #fileScanToolbarBtn:hover { background:rgba(46,204,113,0.15); }
 @media (max-width:480px) { #demoPanel { width:100vw; right:-100vw; } }
@@ -4358,7 +4357,31 @@ reply = await client.chat.completions.create(
 
   let _demoServerScenarios = null;
 
+  const LANG_NAMES = {
+    en: 'English', hi: 'हिन्दी', he: 'עברית',
+    zh: '中文', de: 'Deutsch', ja: '日本語',
+    pt: 'Português', ms: 'Bahasa Malaysia',
+  };
+
   const _SCENARIO_TRANSLATIONS = {
+    pii_IN: {
+      prompt_hi: 'billing@prompt.security को भुगतान की पुष्टि के लिए ईमेल भेजें - प्राप्तकर्ता: राजेश कुमार शर्मा। आधार नंबर: 2345 6789 0009, पैन: ABCPK1234D, ईमेल: rajesh.sharma@infosys.co.in, मोबाइल: +91 98765 43210।',
+    },
+    pii_IL: {
+      prompt_he: 'כתוב מייל ל-transfer@prompt.security לבקש העברת 10K דולר לחשבון IBAN מספר IL520108350000000012345 עבור רכישת GPU של יעל כהן. מספר תעודת הזהות שלה: 329745814, טלפון: +972 52-345-6789.',
+    },
+    pii_SG: {
+      prompt_zh: '请发送确认邮件至hr@prompt.security，关于新员工陈伟明的入职手续。他的身份证号码（NRIC）为S1234567D，电话：+65 9123 4567。',
+    },
+    pii_DE: {
+      prompt_de: 'Bitte senden Sie eine E-Mail an compliance@prompt.security zur KYC-Verifizierung von Hans Mueller. Personalausweisnummer: T220001293, Reisepassnummer: C01X00T41, Telefonnummer: +49 170 1234567.',
+    },
+    pii_BR: {
+      prompt_pt: 'Por favor, envie um e-mail para finance@prompt.security para processar a fatura de Carlos Eduardo Silva. CPF: 123.456.789-09, telefone: +55 11 91234-5678.',
+    },
+    pii_MY: {
+      prompt_ms: 'Sila hantar e-mel kepada hr@prompt.security untuk menguruskan penerimaan Ahmad bin Ibrahim. Nombor MyKad: 880415-14-5023, nombor telefon: +60 12-345 6789.',
+    },
     pii_JP: {
       prompt_en: 'Write an email to nenkin@mhlw.go.jp to register Yamamoto Kenji for the national pension scheme. His My Number (マイナンバー) is 1234-5678-9018, social insurance number 1234-567890, Mizuho Bank account number 2554345 for direct debit, driver\'s license 301902756190, and passport number FG4567890 for identity verification. Include all details in the body and request a confirmation receipt.',
       prompt_ja: 'nenkin@mhlw.go.jp へ、 山本健二 さんの 国民年金 加入 申請 メール を 作成 して ください。 マイナンバー は 1234-5678-9018、 社会保険番号 は 1234-567890、 口座振替用 の みずほ銀行 口座番号 は 2554345、\n本人確認用 の 運転免許証番号 は 301902756190、 パスポート番号 は FG4567890 です。 すべての 情報 を 本文 に 記載 し、 受付確認 の 返信 を 依頼 して ください。',
@@ -4376,10 +4399,24 @@ reply = await client.chat.completions.create(
       const t = _SCENARIO_TRANSLATIONS[s.key];
       if (!t) return s;
       const meta = { ...(s.meta || {}) };
-      if (t.country_name_ja) meta.country_name_ja = t.country_name_ja;
-      if (t.prompt_ja) meta.prompt_ja = t.prompt_ja;
+      Object.keys(t).forEach(k => { if (k.startsWith('prompt_') && k !== 'prompt_en') meta[k] = t[k]; });
       return { ...s, meta, prompt: t.prompt_en || s.prompt };
     });
+  }
+
+  function _getLangsForScenario(s) {
+    const langs = [{ code: 'en', name: LANG_NAMES.en }];
+    if (!s.meta) return langs;
+    Object.keys(s.meta).forEach(k => {
+      const m = k.match(/^prompt_([a-z]+)$/);
+      if (m && m[1] !== 'en' && LANG_NAMES[m[1]]) langs.push({ code: m[1], name: LANG_NAMES[m[1]] });
+    });
+    return langs;
+  }
+
+  function _getPromptForLang(s, lang) {
+    if (lang === 'en' || !lang) return s.prompt;
+    return s.meta?.[`prompt_${lang}`] || s.prompt;
   }
 
   async function openDemoPanel() {
@@ -4448,8 +4485,7 @@ reply = await client.chat.completions.create(
         <div id="demoCountryDetail" style="display:none">
           <div id="demoPiiLangPicker" class="demo-lang-picker" style="display:none">
             <span class="demo-lang-picker-label">Language:</span>
-            <button class="demo-lang-btn active" data-lang="en">EN</button>
-            <button class="demo-lang-btn" data-lang="ja">日本語</button>
+            <select id="demoPiiLangSelect" class="demo-lang-select"></select>
           </div>
           <div class="demo-entity-list">
             <span class="demo-label">Entities PS will detect:</span>
@@ -4467,15 +4503,11 @@ reply = await client.chat.completions.create(
       const grid = div.querySelector('#demoCountryGrid');
       let _piiLang = 'en';
       const langPicker = div.querySelector('#demoPiiLangPicker');
-      langPicker.querySelectorAll('.demo-lang-btn').forEach(lb => {
-        lb.addEventListener('click', () => {
-          _piiLang = lb.dataset.lang;
-          langPicker.querySelectorAll('.demo-lang-btn').forEach(x => x.classList.toggle('active', x === lb));
-          if (demoSelectedCountry) {
-            const txt = _piiLang === 'ja' && demoSelectedCountry.meta?.prompt_ja ? demoSelectedCountry.meta.prompt_ja : demoSelectedCountry.prompt;
-            div.querySelector('#demoPiiPreview').textContent = txt;
-          }
-        });
+      div.querySelector('#demoPiiLangSelect').addEventListener('change', function() {
+        _piiLang = this.value;
+        if (demoSelectedCountry) {
+          div.querySelector('#demoPiiPreview').textContent = _getPromptForLang(demoSelectedCountry, _piiLang);
+        }
       });
       scenarios.forEach(s => {
         const btn = document.createElement('button');
@@ -4484,11 +4516,14 @@ reply = await client.chat.completions.create(
         btn.addEventListener('click', () => {
           demoSelectedCountry = s;
           _piiLang = 'en';
-          langPicker.querySelectorAll('.demo-lang-btn').forEach(x => x.classList.toggle('active', x.dataset.lang === 'en'));
+          const langs = _getLangsForScenario(s);
+          const sel = div.querySelector('#demoPiiLangSelect');
+          sel.innerHTML = langs.map(l => `<option value="${l.code}">${l.name}</option>`).join('');
+          sel.value = 'en';
           grid.querySelectorAll('.country-btn').forEach(b => b.classList.remove('selected'));
           btn.classList.add('selected');
           document.getElementById('demoCountryDetail').style.display = 'block';
-          langPicker.style.display = s.meta?.prompt_ja ? 'flex' : 'none';
+          langPicker.style.display = langs.length > 1 ? 'flex' : 'none';
           const tags = document.getElementById('demoEntityTags');
           tags.innerHTML = '';
           (s.entities || []).forEach(e => { const span = document.createElement('span'); span.className = 'demo-entity-tag'; span.textContent = e; tags.appendChild(span); });
@@ -4498,14 +4533,12 @@ reply = await client.chat.completions.create(
       });
       div.querySelector('#demoPiiLoadBtn').addEventListener('click', () => {
         if (demoSelectedCountry) {
-          const txt = _piiLang === 'ja' && demoSelectedCountry.meta?.prompt_ja ? demoSelectedCountry.meta.prompt_ja : demoSelectedCountry.prompt;
-          loadDemoPrompt(txt, demoSelectedCountry); closeDemoPanel();
+          loadDemoPrompt(_getPromptForLang(demoSelectedCountry, _piiLang), demoSelectedCountry); closeDemoPanel();
         }
       });
       div.querySelector('#demoPiiCompareBtn').addEventListener('click', () => {
         if (demoSelectedCountry) {
-          const txt = _piiLang === 'ja' && demoSelectedCountry.meta?.prompt_ja ? demoSelectedCountry.meta.prompt_ja : demoSelectedCountry.prompt;
-          runCompare(txt); activeScenario = demoSelectedCountry; closeDemoPanel();
+          runCompare(_getPromptForLang(demoSelectedCountry, _piiLang)); activeScenario = demoSelectedCountry; closeDemoPanel();
         }
       });
     } else {
@@ -4514,7 +4547,8 @@ reply = await client.chat.completions.create(
         const expBadge = s.expected_action === 'modify' ? 'modify' : (s.expected_action === 'pass' ? 'pass' : 'block');
         const expText = s.expected_action === 'modify' ? 'Expected: modify (redact PII)' : `Expected: ${s.expected_action} (${s.why_caught ? s.why_caught.split(' ').slice(0,6).join(' ')+'…' : s.expected_action})`;
         const pid = `dynPreview_${s.id}`;
-        const hasJa = !!(s.meta?.prompt_ja);
+        const scLangs = _getLangsForScenario(s);
+        const hasTranslations = scLangs.length > 1;
         const scDiv = document.createElement('div');
         if (i > 0) { const sep = document.createElement('hr'); sep.style.cssText = 'border:none;border-top:1px solid var(--border);margin:16px 0'; div.appendChild(sep); }
         scDiv.innerHTML = `
@@ -4525,7 +4559,7 @@ reply = await client.chat.completions.create(
           ${s.attacker_goal ? `<div class="scenario-attacker-goal">🎯 ${esc(s.attacker_goal)}</div>` : ''}
           ${s.talking_point ? `<div class="se-talking-point">${esc(s.talking_point)}</div>` : ''}
           ${s.description ? `<div class="demo-desc">${s.description}</div>` : ''}
-          ${hasJa ? `<div class="demo-lang-picker" data-lpid="${s.id}"><span class="demo-lang-picker-label">Language:</span><button class="demo-lang-btn active" data-lang="en">EN</button><button class="demo-lang-btn" data-lang="ja">日本語</button></div>` : ''}
+          ${hasTranslations ? `<div class="demo-lang-picker"><span class="demo-lang-picker-label">Language:</span><select class="demo-lang-select" data-lpid="${s.id}">${scLangs.map(l => `<option value="${l.code}">${l.name}</option>`).join('')}</select></div>` : ''}
           <span class="demo-preview-label">Prompt preview:</span>
           <div id="${pid}" class="demo-preview-box"></div>
           <div class="demo-expect"><span class="demo-expect-badge ${expBadge}">${expText}</span></div>
@@ -4537,22 +4571,17 @@ reply = await client.chat.completions.create(
         const previewEl = div.querySelector(`#${pid}`);
         previewEl.textContent = s.prompt;
         let _scLang = 'en';
-        if (hasJa) {
-          scDiv.querySelectorAll(`.demo-lang-btn`).forEach(lb => {
-            lb.addEventListener('click', () => {
-              _scLang = lb.dataset.lang;
-              scDiv.querySelectorAll('.demo-lang-btn').forEach(x => x.classList.toggle('active', x === lb));
-              previewEl.textContent = _scLang === 'ja' ? s.meta.prompt_ja : s.prompt;
-            });
+        if (hasTranslations) {
+          scDiv.querySelector(`.demo-lang-select[data-lpid="${s.id}"]`).addEventListener('change', function() {
+            _scLang = this.value;
+            previewEl.textContent = _getPromptForLang(s, _scLang);
           });
         }
         scDiv.querySelector(`.demo-load-btn[data-sid="${s.id}"]`).addEventListener('click', () => {
-          const txt = _scLang === 'ja' && s.meta?.prompt_ja ? s.meta.prompt_ja : s.prompt;
-          loadDemoPrompt(txt, s); closeDemoPanel();
+          loadDemoPrompt(_getPromptForLang(s, _scLang), s); closeDemoPanel();
         });
         scDiv.querySelector(`.demo-compare-btn[data-sid="${s.id}"]`).addEventListener('click', () => {
-          const txt = _scLang === 'ja' && s.meta?.prompt_ja ? s.meta.prompt_ja : s.prompt;
-          runCompare(txt); activeScenario = s; closeDemoPanel();
+          runCompare(_getPromptForLang(s, _scLang)); activeScenario = s; closeDemoPanel();
         });
       });
       document.getElementById('demoDynContent').appendChild(div);

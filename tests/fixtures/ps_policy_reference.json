@@ -1,0 +1,55 @@
+{
+  "_comment": "Reference policy configuration used by the PS test instance. Entity types listed here correspond to the thresholds configured in the PS sensitive-data plugin. Sourced from ps-ai-engine/apps/ps-sensitive-data/.",
+  "sensitive_data": {
+    "entities": {
+      "JP": [
+        "JAPAN_MY_NUMBER_PERSONAL",
+        "JAPAN_MY_NUMBER_CORPORATE",
+        "JAPAN_PASSPORT_NUMBER",
+        "JAPAN_DRIVER_LICENSE_NUMBER",
+        "JAPAN_BANK_ACCOUNT_NUMBER",
+        "JAPAN_RESIDENCE_CARD_NUMBER",
+        "JAPAN_RESIDENT_REGISTRATION_NUMBER",
+        "JAPAN_SOCIAL_INSURANCE_NUMBER_SIN"
+      ],
+      "DE": [
+        "GERMANY_ID_NUMBER",
+        "GERMANY_PASSPORT_NUMBER",
+        "GERMANY_DRIVERS_LICENSE_NUMBER",
+        "GERMANY_TAX_ID_NUMBER",
+        "GERMANY_VAT_NUMBER"
+      ],
+      "IN": [
+        "INDIA_AADHAAR_NUMBER",
+        "INDIA_PAN_NUMBER",
+        "INDIA_DRIVER_LICENSE",
+        "INDIA_GST_NUMBER",
+        "INDIA_VOTER_ID"
+      ],
+      "IL": [
+        "IL_ID_NUMBER",
+        "IL_PASSPORT_RE",
+        "IL_BANK_NUMBER"
+      ],
+      "SG": [
+        "SG_NRIC_FIN",
+        "SINGAPORE_PASSPORT_NUMBER",
+        "SINGAPORE_DRIVER_LICENSE_NUMBER",
+        "SINGAPORE_BANK_ACCOUNT_NUMBER"
+      ],
+      "BR": [
+        "BR_CPF_NUMBER",
+        "BRAZIL_CNPJ_NUMBER"
+      ],
+      "MY": [
+        "MALAYSIA_ID_NUMBER",
+        "MALAYSIA_PASSPORT",
+        "MALAYSIAN_BANK_ACCOUNT_NUMBER"
+      ]
+    }
+  },
+  "prompt_injection": {
+    "action": "block",
+    "note": "Direct injection and soft injection both trigger block at HIGH severity."
+  }
+}

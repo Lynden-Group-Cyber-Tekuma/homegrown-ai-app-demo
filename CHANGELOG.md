@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-06-15]
+### Added
+- Multi-country language picker in Demo panel: every PII country with a distinct local language now shows a `<select>` dropdown (EN + local); countries supported: India (हिन्दी), Israel (עברית), Singapore (中文), Germany (Deutsch), Japan (日本語), Brazil (Português), Malaysia (Bahasa Malaysia); US/AU/GB remain English-only with no picker shown — @ori.tabac
+- Prompt Injection demo scenarios also get a language `<select>` (EN / 日本語); same generic helper functions power both PII and non-PII scenarios — @ori.tabac
+- New `LANG_NAMES` JS constant, `_getLangsForScenario()`, and `_getPromptForLang()` helper functions in `index.html`; `_applyBuiltinTranslations()` generalised to merge any `prompt_XX` key, not just `prompt_ja` — @ori.tabac
+- Translated prompts stored in `meta.prompt_XX` in `app/data/scenarios.json` (for fresh DB seeds) and hardcoded in `_SCENARIO_TRANSLATIONS` in `index.html` (zero-reload for existing deployments) — @ori.tabac
+- Real PS API integration tests in `tests/test_pii_translations.py`: parametrised per country/lang, assert `action == "modify"` for PII and `action == "block"` for injection; tests skip when `PS_BASE_URL`/`PS_APP_ID` not set; coverage guard `pytest.fail()`s if any `meta.prompt_XX` key in `scenarios.json` has no corresponding test — @ori.tabac
+- `PS_BASE_URL` and `PS_APP_ID` secrets wired into `.github/workflows/ci.yml` pytest step — @ori.tabac
+- `app/data/translations.py` registry and `tests/fixtures/ps_policy_reference.json` entity reference added — @ori.tabac
+- CLAUDE.md "Demo Scenario Translations" section documents dual-write pattern, language codes, and mandatory test checklist for future additions — @ori.tabac
+
 ## [2026-06-14]
 ### Added
 - Language toggle (EN / 日本語) in Demo panel: Japan PII scenario and Prompt Injection scenarios each have an EN/日本語 switcher; selecting Japanese swaps the preview text and loads the Japanese prompt into chat/compare; toggle only appears on scenarios that carry a Japanese translation in their metadata — @ori.tabac
