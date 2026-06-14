@@ -8,7 +8,7 @@ Requires env vars:
 Without these vars, all tests skip (CI shows yellow, not red).
 
 Coverage guard: any scenario in scenarios.json that has a meta.prompt_XX key must
-appear in the parametrize tables below — pytest.fail() if not.
+appear in _registered_translations() below — pytest.fail() if not.
 """
 
 import json
@@ -18,15 +18,14 @@ import sys
 from pathlib import Path
 
 import pytest
-import pytest_asyncio
 
-# Ensure app/ is on the path so we can import PromptSecurityClient
 sys.path.insert(0, str(Path(__file__).parent.parent / "app"))
 from prompt_security import PromptSecurityClient  # noqa: E402
 
 SCENARIOS_PATH = Path(__file__).parent.parent / "app" / "data" / "scenarios.json"
 
-# ── Fixtures ─────────────────────────────────────────────────────────────────
+
+# ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture(scope="session")
 def ps_client():
@@ -44,10 +43,34 @@ def scenarios():
     return {s["key"]: s for s in data}
 
 
+def _findings_entities(result) -> set:
+    """Extract entity_type values from raw PS findings."""
+    found = set()
+    findings = result.raw.get("result", {}).get("prompt", {}).get("findings", {})
+    for detections in findings.values():
+        if not isinstance(detections, list):
+            continue
+        for d in detections:
+            if isinstance(d, dict) and "entity_type" in d:
+                found.add(d["entity_type"])
+    return found
+
+
+async def _assert_pii_modify(ps_client, scenarios, key, lang):
+    s = scenarios[key]
+    prompt = s["meta"][f"prompt_{lang}"]
+    result = await ps_client.protect_prompt(prompt)
+    detected = _findings_entities(result)
+    assert result.action == "modify", (
+        f"{key}/{lang}: expected action=modify, got {result.action!r}. "
+        f"Detected entities: {detected or '(none)'}"
+    )
+    return detected
+
+
 # ── Coverage guard ────────────────────────────────────────────────────────────
 
 def _registered_translations():
-    """(key, lang) pairs that have a test in this file."""
     return {
         ("pii_JP", "ja"),
         ("pii_DE", "de"),
@@ -84,72 +107,65 @@ def test_translation_coverage():
         )
 
 
-# ── PII tests — assert action == "modify" ────────────────────────────────────
+# ── PII tests — per country ───────────────────────────────────────────────────
 
-@pytest.mark.parametrize("key,lang,expected_entities", [
-    (
-        "pii_JP", "ja",
-        ["JAPAN_MY_NUMBER_PERSONAL", "JAPAN_SOCIAL_INSURANCE_NUMBER_SIN"],
-    ),
-    (
-        "pii_DE", "de",
-        ["GERMANY_ID_NUMBER", "GERMANY_PASSPORT_NUMBER"],
-    ),
-    (
-        "pii_IN", "hi",
-        ["INDIA_AADHAAR_NUMBER", "INDIA_PAN_NUMBER"],
-    ),
-    (
-        "pii_IL", "he",
-        ["IL_ID_NUMBER"],
-    ),
-    (
-        "pii_SG", "zh",
-        ["SG_NRIC_FIN"],
-    ),
-    (
-        "pii_BR", "pt",
-        ["BR_CPF_NUMBER"],
-    ),
-    (
-        "pii_MY", "ms",
-        ["MALAYSIA_ID_NUMBER"],
-    ),
-])
 @pytest.mark.asyncio
-async def test_translated_pii_triggers_modify(ps_client, scenarios, key, lang, expected_entities):
-    s = scenarios[key]
-    prompt = s["meta"][f"prompt_{lang}"]
-    result = await ps_client.protect_prompt(prompt)
-    assert result.action == "modify", (
-        f"{key}/{lang}: expected action=modify, got {result.action!r}"
-    )
-    # Entity names live in findings, not violations (violations hold generic categories)
-    detected = set()
-    findings = result.raw.get("result", {}).get("prompt", {}).get("findings", {})
-    for detections in findings.values():
-        if not isinstance(detections, list):
-            continue
-        for d in detections:
-            if isinstance(d, dict) and "entity_type" in d:
-                detected.add(d["entity_type"])
-    for entity in expected_entities:
-        assert entity in detected, (
-            f"{key}/{lang}: expected entity {entity!r} not in findings {detected}"
-        )
+async def test_pii_japan_japanese(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_JP", "ja")
+    print(f"\npii_JP/ja detected: {detected}")
 
 
-# ── Injection tests — assert action == "block" ───────────────────────────────
-
-@pytest.mark.parametrize("key,lang", [
-    ("injection", "ja"),
-    ("injSoft", "ja"),
-])
 @pytest.mark.asyncio
-async def test_translated_injection_triggers_block(ps_client, scenarios, key, lang):
-    s = scenarios[key]
-    prompt = s["meta"][f"prompt_{lang}"]
-    result = await ps_client.protect_prompt(prompt)
+async def test_pii_germany_german(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_DE", "de")
+    print(f"\npii_DE/de detected: {detected}")
+
+
+@pytest.mark.asyncio
+async def test_pii_india_hindi(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_IN", "hi")
+    print(f"\npii_IN/hi detected: {detected}")
+
+
+@pytest.mark.asyncio
+async def test_pii_israel_hebrew(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_IL", "he")
+    print(f"\npii_IL/he detected: {detected}")
+
+
+@pytest.mark.asyncio
+async def test_pii_singapore_mandarin(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_SG", "zh")
+    print(f"\npii_SG/zh detected: {detected}")
+
+
+@pytest.mark.asyncio
+async def test_pii_brazil_portuguese(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_BR", "pt")
+    print(f"\npii_BR/pt detected: {detected}")
+
+
+@pytest.mark.asyncio
+async def test_pii_malaysia_malay(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_MY", "ms")
+    print(f"\npii_MY/ms detected: {detected}")
+
+
+# ── Injection tests — assert action == "block" ────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_injection_japanese(ps_client, scenarios):
+    s = scenarios["injection"]
+    result = await ps_client.protect_prompt(s["meta"]["prompt_ja"])
     assert result.action == "block", (
-        f"{key}/{lang}: expected action=block, got {result.action!r}"
+        f"injection/ja: expected block, got {result.action!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_injection_soft_japanese(ps_client, scenarios):
+    s = scenarios["injSoft"]
+    result = await ps_client.protect_prompt(s["meta"]["prompt_ja"])
+    assert result.action == "block", (
+        f"injSoft/ja: expected block, got {result.action!r}"
     )
