@@ -41,4 +41,4 @@ jobs:
           PYTHONPATH: app
           PS_BASE_URL: ${{ secrets.PS_BASE_URL }}
           PS_APP_ID: ${{ secrets.PS_APP_ID }}
-        run: pytest -q
+        run: pytest -q -s

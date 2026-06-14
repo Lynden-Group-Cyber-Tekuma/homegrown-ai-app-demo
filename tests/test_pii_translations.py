@@ -58,7 +58,7 @@ def _findings_entities(result) -> set:
 
 async def _assert_pii_modify(ps_client, scenarios, key, lang):
     s = scenarios[key]
-    prompt = s["meta"][f"prompt_{lang}"]
+    prompt = s["meta"][f"prompt_{lang}"] if lang != "en" else s["prompt"]
     result = await ps_client.protect_prompt(prompt)
     detected = _findings_entities(result)
     assert result.action == "modify", (
@@ -107,12 +107,26 @@ def test_translation_coverage():
         )
 
 
-# ── PII tests — per country ───────────────────────────────────────────────────
+# ── Japan ─────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_pii_japan_english(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_JP", "en")
+    print(f"\npii_JP/en detected: {detected}")
+
 
 @pytest.mark.asyncio
 async def test_pii_japan_japanese(ps_client, scenarios):
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_JP", "ja")
     print(f"\npii_JP/ja detected: {detected}")
+
+
+# ── Germany ───────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_pii_germany_english(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_DE", "en")
+    print(f"\npii_DE/en detected: {detected}")
 
 
 @pytest.mark.asyncio
@@ -121,10 +135,26 @@ async def test_pii_germany_german(ps_client, scenarios):
     print(f"\npii_DE/de detected: {detected}")
 
 
+# ── India ─────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_pii_india_english(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_IN", "en")
+    print(f"\npii_IN/en detected: {detected}")
+
+
 @pytest.mark.asyncio
 async def test_pii_india_hindi(ps_client, scenarios):
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_IN", "hi")
     print(f"\npii_IN/hi detected: {detected}")
+
+
+# ── Israel ────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_pii_israel_english(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_IL", "en")
+    print(f"\npii_IL/en detected: {detected}")
 
 
 @pytest.mark.asyncio
@@ -133,10 +163,26 @@ async def test_pii_israel_hebrew(ps_client, scenarios):
     print(f"\npii_IL/he detected: {detected}")
 
 
+# ── Singapore ─────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_pii_singapore_english(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_SG", "en")
+    print(f"\npii_SG/en detected: {detected}")
+
+
 @pytest.mark.asyncio
 async def test_pii_singapore_mandarin(ps_client, scenarios):
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_SG", "zh")
     print(f"\npii_SG/zh detected: {detected}")
+
+
+# ── Brazil ────────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_pii_brazil_english(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_BR", "en")
+    print(f"\npii_BR/en detected: {detected}")
 
 
 @pytest.mark.asyncio
@@ -145,13 +191,30 @@ async def test_pii_brazil_portuguese(ps_client, scenarios):
     print(f"\npii_BR/pt detected: {detected}")
 
 
+# ── Malaysia ──────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_pii_malaysia_english(ps_client, scenarios):
+    detected = await _assert_pii_modify(ps_client, scenarios, "pii_MY", "en")
+    print(f"\npii_MY/en detected: {detected}")
+
+
 @pytest.mark.asyncio
 async def test_pii_malaysia_malay(ps_client, scenarios):
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_MY", "ms")
     print(f"\npii_MY/ms detected: {detected}")
 
 
-# ── Injection tests — assert action == "block" ────────────────────────────────
+# ── Prompt Injection ──────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_injection_english(ps_client, scenarios):
+    s = scenarios["injection"]
+    result = await ps_client.protect_prompt(s["prompt"])
+    assert result.action == "block", (
+        f"injection/en: expected block, got {result.action!r}"
+    )
+
 
 @pytest.mark.asyncio
 async def test_injection_japanese(ps_client, scenarios):
@@ -159,6 +222,15 @@ async def test_injection_japanese(ps_client, scenarios):
     result = await ps_client.protect_prompt(s["meta"]["prompt_ja"])
     assert result.action == "block", (
         f"injection/ja: expected block, got {result.action!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_injection_soft_english(ps_client, scenarios):
+    s = scenarios["injSoft"]
+    result = await ps_client.protect_prompt(s["prompt"])
+    assert result.action == "block", (
+        f"injSoft/en: expected block, got {result.action!r}"
     )
 
 
