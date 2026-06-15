@@ -7,11 +7,13 @@ Requires env vars:
 
 Without these vars, all tests skip (CI shows yellow, not red).
 
-Policy is passed per-request from tests/fixtures/ps_policy_reference.json.
-entity_types is overridden per country so that country-specific PII is scanned,
-not just EMAIL_ADDRESS (the default in the shared app policy).
-Language Detector is disabled for non-English tests to prevent blocking
-translated prompts that aren't in the policy's allowed-languages list.
+PII tests: only Sensitive Data detector enabled, all others disabled. This
+isolates PII detection from unrelated block-capable detectors (Data Privacy
+Guidelines, Natural Language Guardrails, Topics Detector, etc.) that would
+otherwise fire on financial/HR content in the test prompts and return
+action=block instead of action=modify.
+
+Injection tests: only Prompt Injection Engine enabled, all others disabled.
 
 Coverage guard: any scenario in scenarios.json with a meta.prompt_XX key must
 appear in _registered_translations() — pytest.fail() if not.
@@ -76,17 +78,33 @@ def base_policy():
         return json.load(f)
 
 
-def _pii_policy(base_policy: dict, country_code: str, native_lang: bool = False) -> dict:
-    """
-    Build a per-request policy for a PII country scan.
-    - Sets entity_types to EMAIL_ADDRESS + all country-specific entities
-    - Disables Language Detector for native-language tests (prevents blocking non-EN prompts)
-    """
+_BLOCKING_DETECTORS = [
+    "Language Detector", "Natural Language Guardrails", "Data Privacy Guidelines",
+    "Topics Detector", "Prompt Injection Engine", "Harmful Content Moderator",
+    "Code Detector", "URLs Detector", "Secrets", "Regex", "Sentiment",
+    "Unicode Detector", "Token Limitation", "Token Rate Limit",
+]
+
+
+def _pii_policy(base_policy: dict, country_code: str) -> dict:
+    """Only Sensitive Data enabled — all other detectors off to prevent spurious blocks."""
     policy = copy.deepcopy(base_policy)
+    for det in _BLOCKING_DETECTORS:
+        if det in policy["prompt"]:
+            policy["prompt"][det]["enabled"] = False
     sd = policy["prompt"]["Sensitive Data"]
     sd["entity_types"] = ["EMAIL_ADDRESS"] + COUNTRY_ENTITIES.get(country_code, [])
-    if native_lang:
-        policy["prompt"]["Language Detector"]["enabled"] = False
+    return policy
+
+
+def _injection_policy(base_policy: dict) -> dict:
+    """Only Prompt Injection Engine enabled — all other detectors off."""
+    policy = copy.deepcopy(base_policy)
+    off = [d for d in _BLOCKING_DETECTORS if d != "Prompt Injection Engine"]
+    off.append("Sensitive Data")
+    for det in off:
+        if det in policy["prompt"]:
+            policy["prompt"][det]["enabled"] = False
     return policy
 
 
@@ -148,14 +166,14 @@ def test_translation_coverage():
 
 @pytest.mark.asyncio
 async def test_pii_japan_english(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "JP", native_lang=False)
+    policy = _pii_policy(base_policy, "JP")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_JP", "en", policy)
     print(f"\npii_JP/en detected: {detected}")
 
 
 @pytest.mark.asyncio
 async def test_pii_japan_japanese(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "JP", native_lang=True)
+    policy = _pii_policy(base_policy, "JP")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_JP", "ja", policy)
     print(f"\npii_JP/ja detected: {detected}")
 
@@ -164,15 +182,14 @@ async def test_pii_japan_japanese(ps_client, scenarios, base_policy):
 
 @pytest.mark.asyncio
 async def test_pii_germany_english(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "DE", native_lang=False)
+    policy = _pii_policy(base_policy, "DE")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_DE", "en", policy)
     print(f"\npii_DE/en detected: {detected}")
 
 
 @pytest.mark.asyncio
 async def test_pii_germany_german(ps_client, scenarios, base_policy):
-    # German is in the allowed list — Language Detector stays on
-    policy = _pii_policy(base_policy, "DE", native_lang=False)
+    policy = _pii_policy(base_policy, "DE")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_DE", "de", policy)
     print(f"\npii_DE/de detected: {detected}")
 
@@ -181,14 +198,14 @@ async def test_pii_germany_german(ps_client, scenarios, base_policy):
 
 @pytest.mark.asyncio
 async def test_pii_india_english(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "IN", native_lang=False)
+    policy = _pii_policy(base_policy, "IN")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_IN", "en", policy)
     print(f"\npii_IN/en detected: {detected}")
 
 
 @pytest.mark.asyncio
 async def test_pii_india_hindi(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "IN", native_lang=True)
+    policy = _pii_policy(base_policy, "IN")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_IN", "hi", policy)
     print(f"\npii_IN/hi detected: {detected}")
 
@@ -197,14 +214,14 @@ async def test_pii_india_hindi(ps_client, scenarios, base_policy):
 
 @pytest.mark.asyncio
 async def test_pii_israel_english(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "IL", native_lang=False)
+    policy = _pii_policy(base_policy, "IL")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_IL", "en", policy)
     print(f"\npii_IL/en detected: {detected}")
 
 
 @pytest.mark.asyncio
 async def test_pii_israel_hebrew(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "IL", native_lang=True)
+    policy = _pii_policy(base_policy, "IL")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_IL", "he", policy)
     print(f"\npii_IL/he detected: {detected}")
 
@@ -213,15 +230,14 @@ async def test_pii_israel_hebrew(ps_client, scenarios, base_policy):
 
 @pytest.mark.asyncio
 async def test_pii_singapore_english(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "SG", native_lang=False)
+    policy = _pii_policy(base_policy, "SG")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_SG", "en", policy)
     print(f"\npii_SG/en detected: {detected}")
 
 
 @pytest.mark.asyncio
 async def test_pii_singapore_mandarin(ps_client, scenarios, base_policy):
-    # Chinese is explicitly denied in Language Detector — must disable
-    policy = _pii_policy(base_policy, "SG", native_lang=True)
+    policy = _pii_policy(base_policy, "SG")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_SG", "zh", policy)
     print(f"\npii_SG/zh detected: {detected}")
 
@@ -230,14 +246,14 @@ async def test_pii_singapore_mandarin(ps_client, scenarios, base_policy):
 
 @pytest.mark.asyncio
 async def test_pii_brazil_english(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "BR", native_lang=False)
+    policy = _pii_policy(base_policy, "BR")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_BR", "en", policy)
     print(f"\npii_BR/en detected: {detected}")
 
 
 @pytest.mark.asyncio
 async def test_pii_brazil_portuguese(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "BR", native_lang=True)
+    policy = _pii_policy(base_policy, "BR")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_BR", "pt", policy)
     print(f"\npii_BR/pt detected: {detected}")
 
@@ -246,14 +262,14 @@ async def test_pii_brazil_portuguese(ps_client, scenarios, base_policy):
 
 @pytest.mark.asyncio
 async def test_pii_malaysia_english(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "MY", native_lang=False)
+    policy = _pii_policy(base_policy, "MY")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_MY", "en", policy)
     print(f"\npii_MY/en detected: {detected}")
 
 
 @pytest.mark.asyncio
 async def test_pii_malaysia_malay(ps_client, scenarios, base_policy):
-    policy = _pii_policy(base_policy, "MY", native_lang=True)
+    policy = _pii_policy(base_policy, "MY")
     detected = await _assert_pii_modify(ps_client, scenarios, "pii_MY", "ms", policy)
     print(f"\npii_MY/ms detected: {detected}")
 
@@ -262,15 +278,15 @@ async def test_pii_malaysia_malay(ps_client, scenarios, base_policy):
 
 @pytest.mark.asyncio
 async def test_injection_english(ps_client, scenarios, base_policy):
+    policy = _injection_policy(base_policy)
     s = scenarios["injection"]
-    result = await ps_client.protect_prompt(s["prompt"], policy=base_policy)
+    result = await ps_client.protect_prompt(s["prompt"], policy=policy)
     assert result.action == "block", f"injection/en: expected block, got {result.action!r}"
 
 
 @pytest.mark.asyncio
 async def test_injection_japanese(ps_client, scenarios, base_policy):
-    policy = copy.deepcopy(base_policy)
-    policy["prompt"]["Language Detector"]["enabled"] = False
+    policy = _injection_policy(base_policy)
     s = scenarios["injection"]
     result = await ps_client.protect_prompt(s["meta"]["prompt_ja"], policy=policy)
     assert result.action == "block", f"injection/ja: expected block, got {result.action!r}"
@@ -278,15 +294,15 @@ async def test_injection_japanese(ps_client, scenarios, base_policy):
 
 @pytest.mark.asyncio
 async def test_injection_soft_english(ps_client, scenarios, base_policy):
+    policy = _injection_policy(base_policy)
     s = scenarios["injSoft"]
-    result = await ps_client.protect_prompt(s["prompt"], policy=base_policy)
+    result = await ps_client.protect_prompt(s["prompt"], policy=policy)
     assert result.action == "block", f"injSoft/en: expected block, got {result.action!r}"
 
 
 @pytest.mark.asyncio
 async def test_injection_soft_japanese(ps_client, scenarios, base_policy):
-    policy = copy.deepcopy(base_policy)
-    policy["prompt"]["Language Detector"]["enabled"] = False
+    policy = _injection_policy(base_policy)
     s = scenarios["injSoft"]
     result = await ps_client.protect_prompt(s["meta"]["prompt_ja"], policy=policy)
     assert result.action == "block", f"injSoft/ja: expected block, got {result.action!r}"
