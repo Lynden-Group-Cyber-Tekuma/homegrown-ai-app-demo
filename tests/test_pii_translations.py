@@ -24,6 +24,7 @@ import json
 import os
 import re
 import sys
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,31 @@ from prompt_security import PromptSecurityClient  # noqa: E402
 
 SCENARIOS_PATH = Path(__file__).parent.parent / "app" / "data" / "scenarios.json"
 POLICY_PATH = Path(__file__).parent / "fixtures" / "ps_policy_reference.json"
+
+_REPO = "prompt-security/homegrown-ai-app-demo"
+_DEFAULT_SCENARIOS_URL = f"https://raw.githubusercontent.com/{_REPO}/main/app/data/scenarios.json"
+
+
+def _load_scenarios_data() -> list:
+    """Load scenarios from URL (preferred) or local file (fallback).
+
+    URL priority:
+      1. SCENARIOS_URL env var — explicit override
+      2. GITHUB_SHA + GITHUB_REPOSITORY — exact commit in CI
+      3. Local file
+    """
+    url = os.environ.get("SCENARIOS_URL", "")
+    if not url:
+        sha = os.environ.get("GITHUB_SHA", "")
+        repo = os.environ.get("GITHUB_REPOSITORY", _REPO)
+        if sha:
+            url = f"https://raw.githubusercontent.com/{repo}/{sha}/app/data/scenarios.json"
+    if url:
+        print(f"\nLoading scenarios from URL: {url}")
+        with urllib.request.urlopen(url, timeout=10) as resp:  # noqa: S310
+            return json.loads(resp.read().decode("utf-8"))
+    with open(SCENARIOS_PATH, encoding="utf-8") as f:
+        return json.load(f)
 
 # Entity types to scan per country (all entities from reference policy thresholds)
 COUNTRY_ENTITIES = {
@@ -67,8 +93,7 @@ def ps_client():
 
 @pytest.fixture(scope="session")
 def scenarios():
-    with open(SCENARIOS_PATH, encoding="utf-8") as f:
-        data = json.load(f)
+    data = _load_scenarios_data()
     return {s["key"]: s for s in data}
 
 
@@ -143,8 +168,7 @@ def _registered_translations():
 
 
 def test_translation_coverage():
-    with open(SCENARIOS_PATH, encoding="utf-8") as f:
-        scenarios = json.load(f)
+    scenarios = _load_scenarios_data()
     registered = _registered_translations()
     missing = []
     for s in scenarios:
