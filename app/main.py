@@ -2883,7 +2883,16 @@ async def update_encryption_key(
     if not validate_fernet_key(body.key):
         raise HTTPException(status_code=422, detail="Invalid Fernet key — must be a URL-safe base64-encoded 32-byte value")
 
-    write_encryption_key_override(body.key)
+    try:
+        write_encryption_key_override(body.key)
+    except OSError as exc:
+        logger.error("Failed to write encryption key override file: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not persist key to disk: {exc.strerror} ({exc.filename}). "
+                   "Ensure the app/data/ directory is writable by the container user.",
+        )
+
     set_encryption_key(body.key)
 
     await _log_audit(db, admin.id, admin.email, "encryption_key_changed", "Fernet encryption key updated via admin UI")
