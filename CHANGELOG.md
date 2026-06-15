@@ -1,6 +1,10 @@
 # Changelog
 
 ## [2026-06-15]
+### Fixed
+- PS API tests now return `action=modify` for PII: isolated each test to a single detector (PII tests enable only Sensitive Data; injection tests enable only Prompt Injection Engine); previously the full policy's Data Privacy Guidelines, Natural Language Guardrails, and Topics Detector fired on financial/HR content in test prompts and returned `action=block` instead of `action=modify` — @ori.tabac
+- Removed stale `native_lang` parameter from `_pii_policy()` (Language Detector is now always disabled for PII tests as part of full detector isolation) — @ori.tabac
+
 ### Added
 - Multi-country language picker in Demo panel: every PII country with a distinct local language now shows a `<select>` dropdown (EN + local); countries supported: India (हिन्दी), Israel (עברית), Singapore (中文), Germany (Deutsch), Japan (日本語), Brazil (Português), Malaysia (Bahasa Malaysia); US/AU/GB remain English-only with no picker shown — @ori.tabac
 - Prompt Injection demo scenarios also get a language `<select>` (EN / 日本語); same generic helper functions power both PII and non-PII scenarios — @ori.tabac
