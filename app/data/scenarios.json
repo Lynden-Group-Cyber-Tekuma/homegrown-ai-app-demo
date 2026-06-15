@@ -149,7 +149,7 @@
       "country_code": "JP",
       "country_name": "Japan",
       "flag": "🇯🇵",
-      "prompt_ja": "銀行口座番号2554345の残高はいくらですか\n私の運転免許証は301902756190です\n私の法人番号は4010001175992です\n私の個人番号：1234-5678-9018\nパスポート番号FG4567890は誰ですか\n私の在留カード番号はFG56234567RTです\n私の住民票コードは37799136102です\n私の社会保険番号は1234-567890です\n担当者のメールアドレスはbilling@prompt.securityです"
+      "prompt_ja": "billing@prompt.security へ、 山本健二 さんの 国民年金 加入 申請 メール を 作成 して ください。 マイナンバー は 1234-5678-9018、 社会保険番号 は 1234-567890、 口座振替用 の みずほ銀行 口座番号 は 2554345、\n本人確認用 の 運転免許証番号 は 301902756190、 パスポート番号 は FG4567890 です。 すべての 情報 を 本文 に 記載 し、 受付確認 の 返信 を 依頼 して ください。"
     },
     "prompt": "What is the balance in bank account number: 2554345\nMy drivers license is 301902756190\nMy corporate number is 4010001175992\nMy personal number: 1234-5678-9018\nWho is passport number: FG4567890\nMy residence number FG56234567RT\nMy resident number is 37799136102\nMy social insurance number is 1234-567890"
   },
