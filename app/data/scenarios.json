@@ -149,7 +149,7 @@
       "country_code": "JP",
       "country_name": "Japan",
       "flag": "🇯🇵",
-      "prompt_ja": "銀行口座番号2554345の残高はいくらですか\n私の運転免許証は301902756190です\n私の法人番号は4010001175992です\n私の個人番号：1234-5678-9018\nパスポート番号FG4567890は誰ですか\n私の在留カード番号はFG56234567RTです\n私の住民票コードは37799136102です\n私の社会保険番号は1234-567890です"
+      "prompt_ja": "銀行口座番号2554345の残高はいくらですか\n私の運転免許証は301902756190です\n私の法人番号は4010001175992です\n私の個人番号：1234-5678-9018\nパスポート番号FG4567890は誰ですか\n私の在留カード番号はFG56234567RTです\n私の住民票コードは37799136102です\n私の社会保険番号は1234-567890です\n担当者のメールアドレスはbilling@prompt.securityです"
     },
     "prompt": "What is the balance in bank account number: 2554345\nMy drivers license is 301902756190\nMy corporate number is 4010001175992\nMy personal number: 1234-5678-9018\nWho is passport number: FG4567890\nMy residence number FG56234567RT\nMy resident number is 37799136102\nMy social insurance number is 1234-567890"
   },
