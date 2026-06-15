@@ -34,7 +34,7 @@ SCENARIO_TRANSLATIONS: dict[str, dict[str, str]] = {
     "pii_BR": {"lang": "pt"},
     # Malaysia — Malay
     "pii_MY": {"lang": "ms"},
-    # Prompt injection — Japanese only
-    "injection": {"lang": "ja"},
-    "injSoft": {"lang": "ja"},
+    # Prompt injection — all non-English languages
+    "injection": {"langs": ["ja", "hi", "he", "zh", "de", "pt", "ms"]},
+    "injSoft": {"langs": ["ja", "hi", "he", "zh", "de", "pt", "ms"]},
 }

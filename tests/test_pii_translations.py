@@ -159,12 +159,19 @@ async def _assert_pii_modify(ps_client, scenarios, key, lang, policy):
 
 # ── Coverage guard ────────────────────────────────────────────────────────────
 
+_INJ_LANGS = ["ja", "hi", "he", "zh", "de", "pt", "ms"]
+
+
 def _registered_translations():
-    return {
+    pairs = {
         ("pii_JP", "ja"), ("pii_DE", "de"), ("pii_IN", "hi"),
         ("pii_IL", "he"), ("pii_SG", "zh"), ("pii_BR", "pt"),
-        ("pii_MY", "ms"), ("injection", "ja"), ("injSoft", "ja"),
+        ("pii_MY", "ms"),
     }
+    for lang in _INJ_LANGS:
+        pairs.add(("injection", lang))
+        pairs.add(("injSoft", lang))
+    return pairs
 
 
 def test_translation_coverage():
@@ -301,32 +308,20 @@ async def test_pii_malaysia_malay(ps_client, scenarios, base_policy):
 # ── Prompt Injection ──────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_injection_english(ps_client, scenarios, base_policy):
+@pytest.mark.parametrize("lang", ["en"] + _INJ_LANGS)
+async def test_injection(ps_client, scenarios, base_policy, lang):
     policy = _injection_policy(base_policy)
     s = scenarios["injection"]
-    result = await ps_client.protect_prompt(s["prompt"], policy=policy)
-    assert result.action == "block", f"injection/en: expected block, got {result.action!r}"
+    prompt = s["prompt"] if lang == "en" else s["meta"][f"prompt_{lang}"]
+    result = await ps_client.protect_prompt(prompt, policy=policy)
+    assert result.action == "block", f"injection/{lang}: expected block, got {result.action!r}"
 
 
 @pytest.mark.asyncio
-async def test_injection_japanese(ps_client, scenarios, base_policy):
-    policy = _injection_policy(base_policy)
-    s = scenarios["injection"]
-    result = await ps_client.protect_prompt(s["meta"]["prompt_ja"], policy=policy)
-    assert result.action == "block", f"injection/ja: expected block, got {result.action!r}"
-
-
-@pytest.mark.asyncio
-async def test_injection_soft_english(ps_client, scenarios, base_policy):
+@pytest.mark.parametrize("lang", ["en"] + _INJ_LANGS)
+async def test_injection_soft(ps_client, scenarios, base_policy, lang):
     policy = _injection_policy(base_policy)
     s = scenarios["injSoft"]
-    result = await ps_client.protect_prompt(s["prompt"], policy=policy)
-    assert result.action == "block", f"injSoft/en: expected block, got {result.action!r}"
-
-
-@pytest.mark.asyncio
-async def test_injection_soft_japanese(ps_client, scenarios, base_policy):
-    policy = _injection_policy(base_policy)
-    s = scenarios["injSoft"]
-    result = await ps_client.protect_prompt(s["meta"]["prompt_ja"], policy=policy)
-    assert result.action == "block", f"injSoft/ja: expected block, got {result.action!r}"
+    prompt = s["prompt"] if lang == "en" else s["meta"][f"prompt_{lang}"]
+    result = await ps_client.protect_prompt(prompt, policy=policy)
+    assert result.action == "block", f"injSoft/{lang}: expected block, got {result.action!r}"
