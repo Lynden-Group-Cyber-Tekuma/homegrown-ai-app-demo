@@ -1,5 +1,9 @@
 # Changelog
 
+## [2026-07-02]
+### Changed
+- CLAUDE.md rewritten as a full architecture and operations guide: project overview, service topology (app/db/litellm/ollama), backend module map, startup/lifespan sequence, configuration and secrets layering (override files -> DB settings -> env vars), LLM routing tiers, chat streaming and file scan flows, open mode vs user mode auth model, environment variable reference, CI overview, and gotchas; local (non-Docker) run instructions corrected to include the `DATABASE_URL`/`LITELLM_BASE_URL` overrides required outside the Compose network; Docker log commands switched to project-name-agnostic `docker compose logs` - @duc.do
+
 ## [2026-06-15]
 ### Fixed
 - PS API tests now return `action=modify` for PII: isolated each test to a single detector (PII tests enable only Sensitive Data; injection tests enable only Prompt Injection Engine); previously the full policy's Data Privacy Guidelines, Natural Language Guardrails, and Topics Detector fired on financial/HR content in test prompts and returned `action=block` instead of `action=modify` — @ori.tabac
