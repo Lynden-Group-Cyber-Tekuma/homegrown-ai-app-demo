@@ -1,6 +1,6 @@
 # HomeGrown App Demo
 
-A multi-user AI chat application with deep [Prompt Security](https://www.prompt.security) integration, built with FastAPI, PostgreSQL, and LiteLLM. With a lot of blood sweat and tears. 
+A multi-user AI chat application with deep [Prompt Security](https://www.prompt.security) integration, built with FastAPI and PostgreSQL. With a lot of blood sweat and tears. 
 
 ---
 
@@ -9,7 +9,7 @@ A multi-user AI chat application with deep [Prompt Security](https://www.prompt.
 ### Core Chat
 - **Multi-user streaming chat** — real-time SSE responses with full session history
 - **Per-user daily message limits** — configurable caps to control usage
-- **Multiple LLM providers** — OpenAI, Anthropic, Google, Perplexity, and OpenRouter (including free models) via LiteLLM
+- **Multiple LLM providers** — OpenAI, Anthropic, Google, Perplexity, and OpenRouter (including free models) called directly with your API keys
 
 ### Prompt Security Integration
 - **API mode** — explicit prompt and response scanning before and after each LLM call; violations shown as clickable detail cards with full PS response JSON
@@ -63,7 +63,7 @@ cd homegrown-ai-app-demo
 docker compose up -d --build
 ```
 
-> **Note:** On first run, LiteLLM applies ~110 database migrations. This takes 3–5 minutes. Subsequent starts are instant. Check progress with:
+> **Note:** Check progress with:
 >
 > ```bash
 > docker compose logs -f
@@ -99,57 +99,20 @@ Both modes can be active simultaneously — the chat UI shows a identification o
 | --- | ----------- |
 | [http://localhost:9100](http://localhost:9100) | Chat UI |
 | [http://localhost:9100/admin](http://localhost:9100/admin) | Admin dashboard (requires password) |
-| [http://localhost:4000](http://localhost:4000) | LiteLLM proxy (direct) |
 
 ---
 
 ## LLM Providers & Models
 
-The app supports two routing paths for LLM calls:
-
-### LiteLLM (proxy)
-
-A LiteLLM proxy runs as a separate Docker service on port 4000. Models listed in `litellm/config.yaml` are served through it. The following are enabled by default:
-
-| Model | Provider | Notes |
-| ----- | -------- | ----- |
-| `gpt-4o` / `gpt-4o-mini` / `gpt-5-nano` | OpenAI | Requires `OPENAI_API_KEY` |
-| `claude-sonnet-4-5-20250929` | Anthropic | Requires `ANTHROPIC_API_KEY` |
-| `sonar` | Perplexity | Requires `PERPLEXITY_API_KEY` |
-| `gemini-2.0-flash` / `gemini-1.5-pro` | Google via OpenRouter | Requires `OPENROUTER_API_KEY` |
-| `meta-llama/llama-3.3-70b-instruct:free` | OpenRouter | **Free** |
-| `meta-llama/llama-3.1-8b-instruct:free` | OpenRouter | **Free** |
-| `deepseek/deepseek-r1:free` | OpenRouter | **Free** |
-| `qwen/qwen-2.5-72b-instruct:free` | OpenRouter | **Free** |
-| `qwen/qwen3-next-80b-a3b-instruct:free` | OpenRouter | **Free** |
-| `qwen/qwen3-coder:free` | OpenRouter | **Free** |
-| `mistralai/mistral-7b-instruct:free` | OpenRouter | **Free** |
-| `microsoft/phi-3-mini-128k-instruct:free` | OpenRouter | **Free** |
-| `nvidia/nemotron-nano-9b-v2:free` | OpenRouter | **Free** |
-| `nvidia/nemotron-3-super-120b-a12b:free` | OpenRouter | **Free** |
-| `minimax/minimax-m2.5:free` | OpenRouter | **Free** |
-| `stepfun/step-3.5-flash:free` | OpenRouter | **Free** |
-| `liquid/lfm-2.5-1.2b-thinking:free` | OpenRouter | **Free** |
-| `nousresearch/hermes-3-llama-3.1-405b:free` | OpenRouter | **Free** |
-| `bytedance/seedance-1-5-pro` | OpenRouter | Requires `OPENROUTER_API_KEY` |
-| `sourceful/riverflow-v2-fast-preview` | OpenRouter | Requires `OPENROUTER_API_KEY` |
-| `huggingface/Qwen3VL-8B-Instruct-F16` | Local OpenAI-compatible | See [Local endpoint](#local-openai-compatible-endpoint) |
-
-To add or remove models, edit `litellm/config.yaml` and restart the `litellm` service:
-
-```bash
-docker compose restart litellm
-```
-
 ### Direct provider routing (model discovery)
 
-When an API key is saved for a supported provider in **Admin → Settings → LLM API Keys**, the app queries that provider's `/models` endpoint and populates the model picker with all available models — no changes to `litellm/config.yaml` needed.
+All LLM calls go directly to the provider's API. When an API key is saved for a supported provider in **Admin → Settings → LLM API Keys**, the app queries that provider's `/models` endpoint and populates the model picker with all available models.
 
-Discovered models use a `provider/model-id` prefix (e.g. `openai/gpt-4.1`, `anthropic/claude-opus-4`) and are called **directly** against the provider's API, bypassing LiteLLM entirely. This means:
+Discovered models use a `provider/model-id` prefix (e.g. `openai/gpt-4.1`, `anthropic/claude-opus-4`) and are called **directly** against the provider's API. This means:
 
 - Any model the provider exposes is instantly available in the UI after saving a key
-- The LiteLLM proxy is not involved in these calls
 - Per-user API keys take priority over the shared admin key for that provider
+- Models whose provider has no key configured are hidden from the picker
 
 | Provider | Env var / admin key | Discovery source |
 | -------- | ------------------- | ---------------- |
@@ -179,19 +142,6 @@ Discovered models are persisted in the database and survive restarts. Re-trigger
 | **Gateway mode** | All LLM traffic is routed through the PS proxy URL. No explicit scan calls — PS intercepts at the network layer. |
 
 > **Important:** Each PS tenant has its own App ID. If you switch tenants, you must re-enter the App ID for the new tenant. The previous App ID is automatically cleared on tenant change.
-
----
-
-## Local OpenAI-compatible endpoint
-
-For local servers that expose OpenAI-style `/v1/chat/completions` endpoints, add to the `litellm` service `environment` block in `docker-compose.yml`:
-
-```yaml
-LOCAL_OPENAI_BASE_URL: "http://host.docker.internal:8081/v1"
-LOCAL_OPENAI_API_KEY: "local-dev-key"
-```
-
-The default `litellm/config.yaml` includes the `huggingface/Qwen3VL-8B-Instruct-F16` model pointing to this endpoint.
 
 ---
 

@@ -2585,14 +2585,13 @@ reply = await client.chat.completions.create(
     if (fallback) {
       const note = document.createElement('option');
       note.disabled = true;
-      note.textContent = '\u2500\u2500 LiteLLM offline, using own keys \u2500\u2500';
+      note.textContent = '\u2500\u2500 default models (no discovery yet) \u2500\u2500';
       modelSelect.appendChild(note);
     }
 
     // Group models by category
-    const local = models.filter(m => m.category === 'local');
     const free  = models.filter(m => m.category === 'free');
-    const paid  = models.filter(m => m.category !== 'free' && m.category !== 'local');
+    const paid  = models.filter(m => m.category !== 'free');
 
     let firstSelectable = null;
 
@@ -2614,7 +2613,6 @@ reply = await client.chat.completions.create(
       modelSelect.appendChild(grp);
     }
 
-    addGroup('Local Models', local);
     addGroup('Free Models', free);
     addGroup('Paid Models', paid);
 
@@ -4854,7 +4852,7 @@ if ps_result.action == "modify":
     },
     {
       name: 'LLM Call',
-      code: `# app/main.py — LiteLLM streaming call
+      code: `# app/main.py — direct provider streaming call
 
 llm, effective_model = _user_llm_client(
     current_user, model
@@ -4870,7 +4868,7 @@ async for chunk in stream:
     yield f"data: {json.dumps({'type':'token', 'content':token})}"
     # → browser appends each token in real-time`,
       bullets: [
-        'Uses per-user API key (OpenAI/Anthropic) or shared LiteLLM proxy',
+        'Calls the provider API directly using the per-user or shared key',
         'Streaming: each token is immediately forwarded to the browser via SSE',
         'The browser renders tokens as they arrive — live typewriter effect',
         'Full reply is accumulated server-side for the response scan',

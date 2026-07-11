@@ -40,18 +40,13 @@ def test_detect_provider_openrouter_default():
     assert _detect_provider("mistralai/mistral-7b-instruct:free") == "openrouter"
 
 
-def test_local_openai_model_metadata(monkeypatch):
-    import main
-
-    model_id = "huggingface/Qwen3VL-8B-Instruct-F16"
-    monkeypatch.setattr(main, "_LOCAL_OPENAI_MODEL_IDS", {model_id})
-
-    assert main._detect_provider(model_id) == "local_openai"
-    assert main._model_meta(model_id) == {
-        "category": "local",
-        "provider": "Local OpenAI",
-        "requires_key": None,
-    }
+def test_detect_provider_prefixed():
+    """Discovered models carry an explicit provider/ prefix."""
+    from main import _detect_provider
+    assert _detect_provider("openai/gpt-4.1") == "openai"
+    assert _detect_provider("anthropic/claude-opus-4-5-20250929") == "anthropic"
+    assert _detect_provider("perplexity/sonar") == "perplexity"
+    assert _detect_provider("google/gemini-2.5-pro") == "google"
 
 
 def test_model_meta_free():

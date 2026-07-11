@@ -27,7 +27,6 @@ async def test_health_endpoint_is_public(client):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert "litellm_url" in body
     assert "models_loaded" in body
 
 

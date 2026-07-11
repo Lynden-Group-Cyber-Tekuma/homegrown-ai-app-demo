@@ -660,27 +660,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
                   <button id="encKeyClearBtn" class="btn btn-outline btn-sm" onclick="clearEncryptionKey()" style="color:var(--red);border-color:var(--red)">Clear</button>
                 </div>
               </div>
-
-              <div id="row-litellm-key" class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-                <div class="setting-label">LiteLLM Master Key
-                  <span id="litellmKeySavedChip" style="display:none;font-size:11px;font-weight:400;background:rgba(39,174,96,0.15);color:var(--green);border:1px solid rgba(39,174,96,0.3);border-radius:12px;padding:2px 8px;margin-left:8px">Saved</span>
-                </div>
-                <div class="setting-desc">
-                  Bearer token the app uses when calling the LiteLLM proxy. Format: <code>sk-</code> prefix + 32 hex chars. Stored in the database and applied immediately — no container restart needed.
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;width:100%;max-width:620px">
-                  <input type="text" id="litellmKeyInput" placeholder="Click Generate or paste a key"
-                    autocomplete="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-bwignore="true"
-                    style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;font-family:monospace;padding:6px 10px;outline:none;flex:1;letter-spacing:0.04em">
-                  <button class="btn btn-outline btn-sm" onclick="generateLiteLLMKey()" style="white-space:nowrap;flex-shrink:0">Generate</button>
-                  <button class="btn btn-outline btn-sm" id="copyLitellmBtn" onclick="copyToClipboard('litellmKeyInput', this)" style="white-space:nowrap;flex-shrink:0">Copy</button>
-                </div>
-                <span id="litellmKeyErr" style="font-size:12px;color:var(--red);display:none"></span>
-                <div style="display:flex;gap:8px">
-                  <button id="litellmKeySaveBtn" class="btn btn-primary btn-sm" onclick="saveLiteLLMKey()">Save</button>
-                  <button id="litellmKeyClearBtn" class="btn btn-outline btn-sm" onclick="clearLiteLLMKey()" style="color:var(--red);border-color:var(--red)">Clear</button>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -784,7 +763,7 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
             <div class="pane-unsaved-banner" id="unsaved-sp-llmkeys">⚠ Unsaved changes — click <strong style="margin:0 3px">Save Key</strong> to apply.</div>
             <div class="panel">
               <div class="panel-head">
-                <h3 id="settings-llm-keys">LLM Provider Keys<br><span style="font-size:11px;font-weight:400;color:var(--text-muted)">Stored encrypted · applied immediately to LiteLLM requests</span></h3>
+                <h3 id="settings-llm-keys">LLM Provider Keys<br><span style="font-size:11px;font-weight:400;color:var(--text-muted)">Stored encrypted · applied immediately to LLM requests</span></h3>
               </div>
 
               <div id="providerKeyTable" style="padding:4px 0"></div>
@@ -1110,8 +1089,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     if (jwtChip) jwtChip.style.display = settings.jwt_secret_set ? 'inline' : 'none';
     const encChip = document.getElementById('encKeysavedChip');
     if (encChip) encChip.style.display = settings.encryption_key_set ? 'inline' : 'none';
-    const llmChip = document.getElementById('litellmKeySavedChip');
-    if (llmChip) llmChip.style.display = settings.litellm_key_set ? 'inline' : 'none';
     loadProviderKeys();
     // Application settings
     const dlEl = document.getElementById('appDailyLimit');
@@ -1228,7 +1205,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
       s.admin_password_set ? set('Admin Password')        : warn('Admin Password', 'Default'),
       s.jwt_secret_set     ? set('JWT Secret')            : warn('JWT Secret',     'Ephemeral'),
       s.encryption_key_set ? set('Encryption Key')        : warn('Encryption Key', 'Ephemeral'),
-      s.litellm_key_set    ? set('LiteLLM Key')           : warn('LiteLLM Key',    'Not set'),
     ].join(''));
 
     // ── Email (Open Mode only) ────────────────────────────────────────────────
@@ -1259,15 +1235,14 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
       !s.admin_password_set               && 'Admin password',
       !s.jwt_secret_set                   && 'JWT secret',
       !s.encryption_key_set               && 'Encryption key',
-      !s.litellm_key_set                  && 'LiteLLM master key',
       (openMode && !s.smtp_configured)    && 'SMTP / email',
       (openMode && !domainsSet)           && 'Allowed email domains',
     ].filter(Boolean);
     const unset = allSecurityUnset.length;
 
     // Subset used for the soft exit warning — only the items that would leave the app
-    // non-functional or insecure *right now*. Encryption key and LiteLLM key use ephemeral
-    // fallbacks so they don't warrant blocking exit.
+    // non-functional or insecure *right now*. The encryption key uses an ephemeral
+    // fallback so it doesn't warrant blocking exit.
     _securityUnsetItems = [
       !s.admin_password_set               && 'Admin password',
       !s.jwt_secret_set                   && 'JWT secret',
@@ -1275,8 +1250,8 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
       (openMode && !domainsSet)           && 'Allowed email domains',
     ].filter(Boolean);
 
-    // Total = 4 security essentials + 2 email items in open mode (for the badge fraction)
-    const total = 4 + (openMode ? 2 : 0);
+    // Total = 3 security essentials + 2 email items in open mode (for the badge fraction)
+    const total = 3 + (openMode ? 2 : 0);
 
     const badge = document.getElementById('configStatusBadge');
     if (badge) {
@@ -1300,7 +1275,7 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
 
     // Per-section nav dots (red = something wrong in that pane)
     _setNavDot('sp-general',    fixModelFail);
-    _setNavDot('sp-security',   !s.admin_password_set || !s.jwt_secret_set || !s.encryption_key_set || !s.litellm_key_set);
+    _setNavDot('sp-security',   !s.admin_password_set || !s.jwt_secret_set || !s.encryption_key_set);
     _setNavDot('sp-email',      openMode && (!s.smtp_configured || !domainsSet));
     _setNavDot('sp-psregions',  noRegions);
     _setNavDot('sp-llmkeys',    !anyProviderSet);
@@ -1319,7 +1294,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     toggle('row-admin-pw',    !s.admin_password_set);
     toggle('row-jwt-secret',  !s.jwt_secret_set);
     toggle('row-enc-key',     !s.encryption_key_set);
-    toggle('row-litellm-key', !s.litellm_key_set);
     // Email pane — only relevant in Open Mode
     toggle('row-smtp-host',     openMode && !s.smtp_configured);
     toggle('row-email-domains', openMode && !domainsSet);
@@ -1628,42 +1602,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     document.getElementById('jwtSecretErr').style.display = 'none';
   }
 
-  function generateLiteLLMKey() {
-    const arr = new Uint8Array(32);
-    crypto.getRandomValues(arr);
-    const hex = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
-    document.getElementById('litellmKeyInput').value = 'sk-' + hex;
-    document.getElementById('litellmKeyErr').style.display = 'none';
-  }
-
-  async function saveLiteLLMKey() {
-    const key   = document.getElementById('litellmKeyInput').value.trim();
-    const errEl = document.getElementById('litellmKeyErr');
-    const btn   = document.getElementById('litellmKeySaveBtn');
-
-    errEl.style.display = 'none';
-    if (!key) { errEl.textContent = 'Key cannot be empty'; errEl.style.display = 'block'; return; }
-
-    btn.disabled = true; btn.textContent = 'Saving…';
-    const res = await api('/admin/litellm-key', {
-      method: 'POST',
-      body: JSON.stringify({ key }),
-    });
-    btn.disabled = false;
-    if (res.ok) {
-      clearPaneDirty('sp-security');
-      document.getElementById('litellmKeySavedChip').style.display = 'inline';
-      btn.textContent = 'Saved ✓';
-      setTimeout(() => btn.textContent = 'Save', 2000);
-      await loadConfigChecklist();
-    } else {
-      const d = await res.json().catch(() => ({}));
-      errEl.textContent = '✗ ' + (d.detail || 'Failed to save key');
-      errEl.style.display = 'block';
-      btn.textContent = 'Save';
-    }
-  }
-
   async function clearJwtSecret() {
     const ok = await showConfirm(
       'Clear JWT Secret?',
@@ -1690,21 +1628,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     if (res.ok) {
       document.getElementById('encKeyInput').value = '';
       document.getElementById('encKeysavedChip').style.display = 'none';
-      await loadConfigChecklist();
-    }
-  }
-
-  async function clearLiteLLMKey() {
-    const ok = await showConfirm(
-      'Clear LiteLLM Key?',
-      'This will remove the stored LiteLLM master key. LiteLLM requests will proceed without a key until a new one is saved.',
-      'Clear', 'Cancel'
-    );
-    if (!ok) return;
-    const res = await api('/admin/litellm-key', { method: 'DELETE' });
-    if (res.ok) {
-      document.getElementById('litellmKeyInput').value = '';
-      document.getElementById('litellmKeySavedChip').style.display = 'none';
       await loadConfigChecklist();
     }
   }

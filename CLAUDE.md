@@ -18,7 +18,6 @@ This project maintains a `CHANGELOG.md` at the repo root in [Keep a Changelog](h
 ```bash
 docker compose up -d          # start all services
 docker compose up -d --build app  # rebuild after Python changes
-docker logs -f demo-hgapp-litellm-1  # watch LiteLLM migrations on first run
 ```
 
 ### Run locally without Docker
@@ -36,7 +35,7 @@ pytest tests/test_app_endpoints.py          # single file
 pytest tests/test_chat_stream.py::test_name # single test
 ```
 
-Tests use SQLite in-memory via `conftest.py` — no running Postgres or LiteLLM needed.
+Tests use SQLite in-memory via `conftest.py` — no running Postgres needed.
 
 ---
 
@@ -50,16 +49,14 @@ Tests use SQLite in-memory via `conftest.py` — no running Postgres or LiteLLM 
 - `crypto.py` — Fernet encryption for LLM API keys and PS App IDs stored in DB
 - `database.py` — async SQLAlchemy engine + `get_db` session dependency
 - `prompt_security.py` — `PromptSecurityClient`: wraps `POST /api/protect` and `POST /api/sanitizeFile`
-- `token_counter.py` — token estimation via LiteLLM
+- `token_counter.py` — token estimation via the `litellm` Python library's tokenizer (library only — there is no LiteLLM proxy service)
 - `app/static/` — three self-contained HTML files (no build step, no npm): `index.html` (chat UI), `admin.html` (dashboard), `login.html`
 
-**LiteLLM** runs as a separate Docker service on port 4000, configured via `litellm/config.yaml`. The FastAPI app talks to it over the OpenAI-compatible API using `AsyncOpenAI(base_url=LITELLM_BASE_URL)`.
-
-**Direct provider routing** — when a shared API key is saved for OpenAI, Anthropic, Google, Perplexity, or OpenRouter in the admin Settings panel, the app queries that provider's `/models` endpoint and adds all available models to the picker as `provider/model-id` IDs (e.g. `openai/gpt-4.1`). These calls bypass LiteLLM entirely via `_user_llm_client()` / `_guest_llm_client()`. Discovered models are persisted in the `AppSetting` table.
+**Direct provider routing** — the only LLM path. When a shared API key is saved for OpenAI, Anthropic, Google, Perplexity, or OpenRouter in the admin Settings panel, the app queries that provider's `/models` endpoint and adds all available models to the picker as `provider/model-id` IDs (e.g. `openai/gpt-4.1`). Chat calls go directly to the provider's OpenAI-compatible endpoint via `_user_llm_client()` / `_guest_llm_client()` (per-user key → shared key; `LookupError` if neither is set). Discovered models are persisted in the `AppSetting` table.
 
 ### Key data flows
 
-**Chat (streaming):** `POST /chat/stream` → PS prompt scan (API mode) or pass-through (gateway mode) → LLM call (LiteLLM proxy for config-file models, or direct provider API for `provider/`-prefixed models) → PS response scan → SSE to browser. Gateway mode routes through the PS proxy URL instead of calling PS explicitly.
+**Chat (streaming):** `POST /chat/stream` → PS prompt scan (API mode) or pass-through (gateway mode) → direct provider LLM call → PS response scan → SSE to browser. Gateway mode routes through the PS proxy URL instead of calling PS explicitly.
 
 **File scan:** `POST /upload/sanitize` or `POST /guest/upload/sanitize` → PS two-step async API: `POST /api/sanitizeFile` (returns `jobId`) → `GET /api/sanitizeFile?jobId=X` (poll until `status=done`) → findings rendered with per-category chips and entity detail rows. Result fields live under `metadata.findings` in the PS response.
 

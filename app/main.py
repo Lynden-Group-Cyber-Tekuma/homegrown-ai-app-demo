@@ -59,8 +59,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-8s %(n
 logger = logging.getLogger("main")
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-LITELLM_BASE_URL   = os.getenv("LITELLM_BASE_URL", "http://litellm:4000")
-LITELLM_MASTER_KEY = os.getenv("LITELLM_MASTER_KEY", "")
 ADMIN_EMAIL        = os.getenv("ADMIN_EMAIL", "admin@sentinelone.com")
 ADMIN_PASSWORD     = os.getenv("ADMIN_PASSWORD", "ChangeMe!")
 DEFAULT_DAILY_LIMIT = int(os.getenv("DEFAULT_DAILY_LIMIT", "50")) or None
@@ -127,11 +125,6 @@ KNOWN_PROVIDERS = [
 ]
 
 
-def _litellm_extra(model_id: str) -> dict:
-    """Return extra_body for a LiteLLM call so the stored shared key is used for this request."""
-    key = _SHARED_LLM_KEYS.get(_detect_provider(model_id), "")
-    return {"api_key": key} if key else {}
-
 # ── File upload limits ────────────────────────────────────────────────────────
 # Set MAX_FILE_SIZE_MB in .env to restrict upload size.
 MAX_FILE_SIZE_MB    = int(os.getenv("MAX_FILE_SIZE_MB") or "10")
@@ -192,38 +185,20 @@ _sanitize_user_timestamps: dict[int, deque[float]] = defaultdict(deque)
 _sanitize_user_active: dict[int, int] = defaultdict(int)
 _sanitize_guard_lock = asyncio.Lock()
 
-# ── LiteLLM client (single OpenAI-compatible client for all providers) ────────
-litellm_client = AsyncOpenAI(
-    api_key=LITELLM_MASTER_KEY or "no-key",
-    base_url=f"{LITELLM_BASE_URL}/v1",
-)
-
-
-def set_litellm_master_key(key: str) -> None:
-    """Hot-swap the LiteLLM master key and rebuild the shared client in-process."""
-    global LITELLM_MASTER_KEY, litellm_client
-    LITELLM_MASTER_KEY = key
-    litellm_client = AsyncOpenAI(
-        api_key=key or "no-key",
-        base_url=f"{LITELLM_BASE_URL}/v1",
-    )
-
-# ── Provider base URLs for per-user direct calls ────────────────────────────
+# ── Provider base URLs for direct calls (OpenAI-compatible endpoints) ────────
 _PROVIDER_URLS = {
     "openai":     "https://api.openai.com/v1",
     "anthropic":  "https://api.anthropic.com/v1",
     "google":     "https://generativelanguage.googleapis.com/v1beta/openai/",
+    "perplexity": "https://api.perplexity.ai",
     "openrouter": "https://openrouter.ai/api/v1",
 }
 
 
-_LOCAL_OPENAI_MODEL_IDS: set[str] = set()
 _DISCOVERED_MODELS: dict[str, list[str]] = {}  # provider → [prefixed model IDs like "openai/gpt-4.1"]
 
 
 def _detect_provider(model_id: str) -> str:
-    if model_id in _LOCAL_OPENAI_MODEL_IDS:
-        return "local_openai"
     # Handle explicit provider-prefixed IDs (e.g. from model discovery)
     if model_id.startswith("openai/"):
         return "openai"
@@ -248,8 +223,6 @@ def _detect_provider(model_id: str) -> str:
 def _model_meta(model_id: str) -> dict:
     """Return category, provider, and required key info for a model."""
     provider = _detect_provider(model_id)
-    if provider == "local_openai":
-        return {"category": "local", "provider": "Local OpenAI", "requires_key": None}
     is_free = model_id.lower().endswith(":free")
     return {
         "category": "free" if is_free else "paid",
@@ -274,40 +247,36 @@ def _get_llm_key(user: User, model_id: str) -> str:
 def _guest_llm_client(model_id: str):
     """Like _user_llm_client but for open-mode/guest requests (no per-user key).
 
-    Priority:
-    1. Discovered/prefixed model (e.g. "openai/gpt-5.2") + shared key → direct provider call
-    2. Everything else → LiteLLM proxy
+    Routes directly to the detected provider using the shared key.
+    Raises LookupError when no shared key is configured for the provider.
     """
     provider = _detect_provider(model_id)
-    base_url = _PROVIDER_URLS.get(provider)
-    bare_model = model_id.split("/", 1)[1] if (base_url and model_id.startswith(f"{provider}/")) else model_id
+    base_url = _PROVIDER_URLS[provider]
+    bare_model = model_id.split("/", 1)[1] if model_id.startswith(f"{provider}/") else model_id
 
-    if base_url and model_id.startswith(f"{provider}/"):
-        shared_key = _SHARED_LLM_KEYS.get(provider, "")
-        if shared_key:
-            logger.info("Direct %s call (shared key, guest) for discovered model %s", provider, model_id)
-            return AsyncOpenAI(api_key=shared_key, base_url=base_url), bare_model
-
-    return litellm_client, model_id
+    shared_key = _SHARED_LLM_KEYS.get(provider, "")
+    if not shared_key:
+        raise LookupError(f"No API key configured for provider '{provider}' — ask an admin to add one in Settings → LLM Keys")
+    logger.info("Direct %s call (shared key, guest) for model %s", provider, model_id)
+    return AsyncOpenAI(api_key=shared_key, base_url=base_url), bare_model
 
 
 def _user_llm_client(user: User, model_id: str):
-    """Returns (AsyncOpenAI client, effective_model_id).
+    """Returns (AsyncOpenAI client, effective_model_id) for a direct provider call.
 
     Priority:
-    1. Per-user provider key  → direct call to provider (bypasses LiteLLM)
-    2. Discovered/prefixed model (e.g. "openai/gpt-5.1") + shared key
-                              → direct call to provider (LiteLLM wildcards require a restart
-                                and are unreliable; direct is simpler and faster)
-    3. Everything else        → LiteLLM proxy
+    1. Per-user provider key → direct call to provider
+    2. Shared admin/env key  → direct call to provider
+
+    Raises LookupError when no key is configured for the model's provider.
     """
     provider = _detect_provider(model_id)
-    base_url = _PROVIDER_URLS.get(provider)
+    base_url = _PROVIDER_URLS[provider]
     # Strip "provider/" namespace prefix for the actual API call
-    bare_model = model_id.split("/", 1)[1] if (base_url and model_id.startswith(f"{provider}/")) else model_id
+    bare_model = model_id.split("/", 1)[1] if model_id.startswith(f"{provider}/") else model_id
 
     # 1. Per-user key
-    if user.llm_api_keys_enc and base_url:
+    if user.llm_api_keys_enc:
         try:
             keys = json.loads(decrypt(user.llm_api_keys_enc))
             key = keys.get(provider, "")
@@ -317,15 +286,13 @@ def _user_llm_client(user: User, model_id: str):
         except Exception:
             pass
 
-    # 2. Provider-prefixed model (discovered) + shared key → bypass LiteLLM
-    if base_url and model_id.startswith(f"{provider}/"):
-        shared_key = _SHARED_LLM_KEYS.get(provider, "")
-        if shared_key:
-            logger.info("Direct %s call (shared key) for discovered model %s", provider, model_id)
-            return AsyncOpenAI(api_key=shared_key, base_url=base_url), bare_model
+    # 2. Shared key
+    shared_key = _SHARED_LLM_KEYS.get(provider, "")
+    if shared_key:
+        logger.info("Direct %s call (shared key) for model %s", provider, model_id)
+        return AsyncOpenAI(api_key=shared_key, base_url=base_url), bare_model
 
-    # 3. LiteLLM proxy (handles unprefixed models in config.yaml)
-    return litellm_client, model_id
+    raise LookupError(f"No API key configured for provider '{provider}' — add one in Settings → LLM Keys")
 
 
 # ── Provider model discovery ──────────────────────────────────────────────────
@@ -415,7 +382,9 @@ async def _run_discovery(provider: str, key: str) -> None:
     await refresh_model_cache()
 
 
-# ── Fallback model list (used when LiteLLM is unreachable) ───────────────────
+# ── Fallback model list (used when provider discovery hasn't run yet) ────────
+# These route directly to the provider detected from the model ID and only
+# appear in the picker when a key for that provider is configured.
 _FALLBACK_MODELS = [
     {"id": "gpt-4o"},
     {"id": "gpt-4o-mini"},
@@ -432,37 +401,20 @@ _model_cache: list[dict] = []
 
 
 async def refresh_model_cache() -> list[dict]:
+    """Rebuild the model list from provider discovery results (deduplicated by bare name)."""
     global _model_cache
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            headers = {}
-            if LITELLM_MASTER_KEY:
-                headers["Authorization"] = f"Bearer {LITELLM_MASTER_KEY}"
-            r = await client.get(f"{LITELLM_BASE_URL}/v1/models", headers=headers)
-            r.raise_for_status()
-            data = r.json().get("data", [])
-            # Exclude LiteLLM's wildcard placeholder entry from the visible list
-            _model_cache = [{"id": m["id"]} for m in data if not m["id"].endswith("/*")]
-            logger.info("LiteLLM: %d models loaded", len(_model_cache))
-    except Exception as e:
-        logger.warning("Could not reach LiteLLM (%s) — using fallback model list", e)
-        _model_cache = []
-
-    # Inject discovered provider models (deduplicate against existing bare names)
-    if _DISCOVERED_MODELS:
-        existing_ids = {m["id"] for m in _model_cache}
-        existing_bare = {m["id"].split("/", 1)[-1] for m in _model_cache}
-        added = 0
-        for provider_models in _DISCOVERED_MODELS.values():
-            for mid in provider_models:
-                bare = mid.split("/", 1)[-1]
-                if mid not in existing_ids and bare not in existing_bare:
-                    _model_cache.append({"id": mid})
-                    existing_ids.add(mid)
-                    existing_bare.add(bare)
-                    added += 1
-        if added:
-            logger.info("Injected %d discovered model(s) into cache", added)
+    _model_cache = []
+    existing_ids: set[str] = set()
+    existing_bare: set[str] = set()
+    for provider_models in _DISCOVERED_MODELS.values():
+        for mid in provider_models:
+            bare = mid.split("/", 1)[-1]
+            if mid not in existing_ids and bare not in existing_bare:
+                _model_cache.append({"id": mid})
+                existing_ids.add(mid)
+                existing_bare.add(bare)
+    if _model_cache:
+        logger.info("Model cache: %d discovered model(s)", len(_model_cache))
     return _model_cache
 
 
@@ -590,7 +542,7 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as db:
         await _seed_demo_scenarios(db)
 
-    # Override JWT secret and LiteLLM master key from DB if saved via the admin UI
+    # Override JWT secret from DB if saved via the admin UI
     async with AsyncSessionLocal() as db:
         row = await db.get(AppSetting, "jwt_secret_enc")
         if row:
@@ -599,14 +551,6 @@ async def lifespan(app: FastAPI):
                 logger.info("JWT secret loaded from app_settings")
             except Exception as exc:
                 logger.warning("Could not load JWT secret from DB: %s", exc)
-        llm_row = await db.get(AppSetting, "litellm_key_enc")
-        if llm_row:
-            try:
-                set_litellm_master_key(decrypt(llm_row.value))
-                logger.info("LiteLLM master key loaded from app_settings")
-            except Exception as exc:
-                logger.warning("Could not load LiteLLM master key from DB: %s", exc)
-
         # Load stored provider API keys into _SHARED_LLM_KEYS (override env var values)
         for p in KNOWN_PROVIDERS:
             pk_row = await db.get(AppSetting, f"provider_key_{p['id']}")
@@ -867,7 +811,6 @@ async def delete_my_api_key(
 async def health():
     return {
         "status": "ok",
-        "litellm_url": LITELLM_BASE_URL,
         "models_loaded": len(_model_cache),
     }
 
@@ -932,7 +875,7 @@ async def chat_token_estimate(
     available = _model_cache or _FALLBACK_MODELS
     model = request.model or available[0]["id"]
     if not model:
-        raise HTTPException(status_code=503, detail="No models available — check LiteLLM config")
+        raise HTTPException(status_code=503, detail="No models available — save a provider API key in Admin → Settings → LLM Keys")
 
     if current_user.allowed_models is not None and model not in current_user.allowed_models:
         raise HTTPException(status_code=403, detail="Model not allowed for this user")
@@ -1689,7 +1632,7 @@ async def chat_stream(
     available = _model_cache or _FALLBACK_MODELS
     model = request.model or available[0]["id"]
     if not model:
-        raise HTTPException(status_code=503, detail="No models available — check LiteLLM config")
+        raise HTTPException(status_code=503, detail="No models available — save a provider API key in Admin → Settings → LLM Keys")
     if current_user.allowed_models is not None and model not in current_user.allowed_models:
         raise HTTPException(status_code=403, detail="Model not allowed for this user")
 
@@ -1993,7 +1936,7 @@ async def chat_stream(
             yield f"data: {json.dumps({'type': 'done', 'model': model, 'session_id': session_id, 'ps_scanned': True, 'ps_action': 'gateway', 'ps_violations': [], 'messages_today': today_used, 'daily_limit': current_user.daily_message_limit, 'prompt_tokens': prompt_tokens, 'completion_tokens': completion_tokens, 'total_tokens': total_tokens})}\n\n"
             return
 
-        # ── API mode: explicit PS scan + LiteLLM/per-user key ─────────────────
+        # ── API mode: explicit PS scan + direct provider call ─────────────────
         prompt_violations: list = []
         if ps_client and not skip_ps:
             try:
@@ -2032,16 +1975,17 @@ async def chat_stream(
         else:
             last_user_msg_eff = last_user_msg
 
-        # ── Stream (per-user key or shared LiteLLM) ────────────────────────────
-        llm, effective_model = _user_llm_client(current_user, model)
+        # ── Stream (direct provider call: per-user key or shared key) ──────────
         try:
+            llm, effective_model = _user_llm_client(current_user, model)
             prompt_tokens = estimate_message_tokens(payload, model=effective_model)
 
-            stream_kwargs = {"model": effective_model, "messages": payload, "stream": True}
-            if llm is litellm_client:
-                stream_kwargs["stream_options"] = {"include_usage": True}
-                stream_kwargs["extra_body"] = _litellm_extra(effective_model)
-            stream = await llm.chat.completions.create(**stream_kwargs)
+            stream = await llm.chat.completions.create(
+                model=effective_model,
+                messages=payload,
+                stream=True,
+                stream_options={"include_usage": True},
+            )
 
             # ── Cancellation-aware drain loop ─────────────────────────────────
             # A plain `async for chunk in stream` blocks inside httpx recv()
@@ -2700,7 +2644,6 @@ def _parse_app_settings(s: dict) -> dict:
         "from_email": s.get("from_email", ""),
         "jwt_secret_set": bool(s.get("jwt_secret_enc")),
         "admin_password_set": bool(s.get("admin_password_hash")),
-        "litellm_key_set": bool(s.get("litellm_key_enc")),
         # Application settings
         "daily_limit": int(s["daily_limit"]) if s.get("daily_limit") else DEFAULT_DAILY_LIMIT,
         "max_file_mb": int(s["max_file_mb"]) if s.get("max_file_mb") else MAX_FILE_SIZE_MB,
@@ -2866,35 +2809,6 @@ async def update_admin_password(
     return {"ok": True}
 
 
-class LiteLLMKeyUpdate(BaseModel):
-    key: str
-
-
-@app.post("/admin/litellm-key")
-async def update_litellm_key(
-    body: LiteLLMKeyUpdate,
-    admin: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Store and hot-swap the LiteLLM master key. Note: the LiteLLM container must also be restarted with the new key."""
-    if not body.key:
-        raise HTTPException(status_code=422, detail="Key cannot be empty")
-
-    enc = encrypt(body.key)
-    existing = await db.get(AppSetting, "litellm_key_enc")
-    if existing:
-        existing.value = enc
-    else:
-        db.add(AppSetting(key="litellm_key_enc", value=enc))
-    await db.commit()
-
-    await _log_audit(db, admin.id, admin.email, "litellm_key_changed", "LiteLLM master key updated via admin UI")
-    await db.commit()
-
-    set_litellm_master_key(body.key)
-    return {"ok": True}
-
-
 @app.delete("/admin/jwt-secret")
 async def clear_jwt_secret(
     admin: User = Depends(require_admin),
@@ -2919,22 +2833,6 @@ async def clear_encryption_key(
     """Remove the stored encryption key override and revert to the env-var value (or new ephemeral key)."""
     clear_encryption_key_override()
     await _log_audit(db, admin.id, admin.email, "encryption_key_cleared", "Encryption key override cleared via admin UI — reverted to env default")
-    await db.commit()
-    return {"ok": True}
-
-
-@app.delete("/admin/litellm-key")
-async def clear_litellm_key(
-    admin: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Remove the stored LiteLLM master key."""
-    row = await db.get(AppSetting, "litellm_key_enc")
-    if row:
-        await db.delete(row)
-        await db.commit()
-    set_litellm_master_key("")
-    await _log_audit(db, admin.id, admin.email, "litellm_key_cleared", "LiteLLM master key cleared via admin UI")
     await db.commit()
     return {"ok": True}
 
@@ -2975,7 +2873,7 @@ async def update_application_settings(
     await db.commit()
     await _log_audit(db, admin.id, admin.email, "application_settings_changed", "Application settings updated via admin UI")
     await db.commit()
-    return {"ok": True, "litellm_restarting": False}
+    return {"ok": True}
 
 
 # ── LLM Provider Key management ──────────────────────────────────────────────
@@ -3633,14 +3531,16 @@ async def guest_chat_stream(
                 yield f"data: {json.dumps({'type': 'error', 'detail': f'PS scan failed: {e}'})}\n\n"
                 return
 
-        # LLM stream — bypass LiteLLM for discovered provider-prefixed models (e.g. openai/gpt-5.2)
+        # LLM stream — direct call to the detected provider using the shared key
         try:
             llm, effective_model = _guest_llm_client(model)
             prompt_tokens = estimate_message_tokens(payload, model=effective_model)
-            stream_kwargs: dict = {"model": effective_model, "messages": payload, "stream": True, "stream_options": {"include_usage": True}}
-            if llm is litellm_client:
-                stream_kwargs["extra_body"] = _litellm_extra(effective_model)
-            stream = await llm.chat.completions.create(**stream_kwargs)
+            stream = await llm.chat.completions.create(
+                model=effective_model,
+                messages=payload,
+                stream=True,
+                stream_options={"include_usage": True},
+            )
             async for chunk in stream:
                 if getattr(chunk, "usage", None):
                     prompt_tokens = getattr(chunk.usage, "prompt_tokens", prompt_tokens)
