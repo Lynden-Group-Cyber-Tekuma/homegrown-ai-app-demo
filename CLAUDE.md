@@ -14,23 +14,18 @@ This project maintains a `CHANGELOG.md` at the repo root in [Keep a Changelog](h
 
 ## Commands
 
-### Run the app (Docker, recommended)
+### Run the app (SQLite default — no Docker, no database server)
 ```bash
-docker compose up -d          # start all services
-docker compose up -d --build app  # rebuild after Python changes
-```
-
-### Run locally without Docker
-```bash
-docker compose up -d db       # just the Postgres container
 pip install -r requirements.txt
-cd app && uvicorn main:app --reload --port 8000
+cd app && uvicorn main:app --reload --port 8000   # SQLite file created at app/data/hgapp.db
 ```
 
-### Run with SQLite (no Postgres at all)
+### Run against PostgreSQL instead
 ```bash
-cd app && DB_BACKEND=sqlite uvicorn main:app --reload --port 8000   # file at app/data/hgapp.db
-docker compose -f docker-compose.sqlite.yml up -d --build            # single-container Docker variant
+# local server matching the defaults (hgapp:hgapp_dev@localhost:5432/hgapp):
+cd app && DB_BACKEND=postgres uvicorn main:app --reload --port 8000
+# or any server via a full URL:
+cd app && DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/dbname" uvicorn main:app --port 8000
 ```
 
 ### Run tests
@@ -80,7 +75,7 @@ Top-level support modules (imported flat because `app/` is the working directory
 **Audit log:** Config changes (PS settings, LLM keys, user/tenant CRUD) write `AuditEvent` rows alongside chat `Message` rows; both appear in the admin activity log.
 
 ### Environment variables that change runtime behavior
-- `DB_BACKEND` — `sqlite` switches to file-based SQLite; default is Postgres
+- `DB_BACKEND` — `postgres` switches to a local PostgreSQL server; default is file-based SQLite
 - `SQLITE_PATH` — SQLite file location (default `app/data/hgapp.db`)
 - `DATABASE_URL` — full SQLAlchemy async URL; takes precedence over `DB_BACKEND`
 - `SHOW_LLM_KEY_SETTINGS` — shows per-user LLM key fields in the UI

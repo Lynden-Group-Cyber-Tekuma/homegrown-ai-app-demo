@@ -96,12 +96,6 @@ def test_ps_tenant_schema_documents_https_public_host_contract():
         assert string_schema(gateway_url)["pattern"] == "^https://"
 
 
-def test_dockerfile_uses_non_root_runtime_user():
-    dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
-
-    assert "\nUSER appuser\n" in dockerfile
-
-
 def test_api_key_hash_is_keyed():
     raw_key = "hg_live_example"
     assert hash_api_key(raw_key) == hash_api_key(raw_key)

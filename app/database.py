@@ -10,14 +10,13 @@ from sqlalchemy.orm import DeclarativeBase
 logger = logging.getLogger(__name__)
 
 # Override file: persists a new DATABASE_URL across restarts.
-# In Docker: mounted via app_data volume at /app/data/
-# In local dev: app/data/ relative to this file's directory
+# Lives in app/data/ next to the SQLite database file.
 _DB_OVERRIDE_FILE = Path(os.getenv(
     "DB_OVERRIDE_FILE",
     str(Path(__file__).parent / "data" / "db_config_override.json"),
 ))
 
-_POSTGRES_DEFAULT_URL = "postgresql+asyncpg://hgapp:hgapp_dev@db:5432/hgapp"
+_POSTGRES_DEFAULT_URL = "postgresql+asyncpg://hgapp:hgapp_dev@localhost:5432/hgapp"
 
 
 def _load_override_url() -> str | None:
@@ -42,20 +41,20 @@ def _resolve_database_url(override_url: str | None = None) -> str:
     """Pick the database URL by precedence:
 
     1. override file (admin-persisted)
-    2. DATABASE_URL env var (any SQLAlchemy async URL — Postgres or SQLite)
-    3. DB_BACKEND=sqlite env var → file-based SQLite (path from SQLITE_PATH)
-    4. default Postgres (Docker Compose `db` service)
+    2. DATABASE_URL env var (any SQLAlchemy async URL — SQLite or Postgres)
+    3. DB_BACKEND=postgres env var → local Postgres server
+    4. default: file-based SQLite (path from SQLITE_PATH, else app/data/hgapp.db)
     """
     if override_url:
         return override_url
     env_url = os.getenv("DATABASE_URL")
     if env_url:
         return env_url
-    if os.getenv("DB_BACKEND", "").strip().lower() == "sqlite":
-        sqlite_path = _default_sqlite_path()
-        sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-        return f"sqlite+aiosqlite:///{sqlite_path}"
-    return _POSTGRES_DEFAULT_URL
+    if os.getenv("DB_BACKEND", "").strip().lower() in {"postgres", "postgresql"}:
+        return _POSTGRES_DEFAULT_URL
+    sqlite_path = _default_sqlite_path()
+    sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite+aiosqlite:///{sqlite_path}"
 
 
 DATABASE_URL: str = _resolve_database_url(_load_override_url())

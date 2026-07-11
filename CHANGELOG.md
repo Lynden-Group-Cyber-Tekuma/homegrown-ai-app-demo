@@ -1,6 +1,9 @@
 # Changelog
 
 ## [2026-07-11]
+### Changed
+- SQLite is now the default database and Docker has been removed from the project. With no configuration the app creates `app/data/hgapp.db` on first start; PostgreSQL remains available via `DB_BACKEND=postgres` (local server at `localhost:5432`) or a full `DATABASE_URL`. Deleted `Dockerfile`, `docker-compose.yml`, `docker-compose.sqlite.yml` and `docker-entrypoint.sh`; removed the Dockerfile assertion from the security test suite; scrubbed Docker references from `crypto.py`/`database.py` messages, `.env.example` and `.gitignore`. README Quick Start rewritten for direct Python execution (venv, `pip install`, `uvicorn main:app --port 8000`, URLs updated from :9100 to :8000) and the Database backends section now documents SQLite-first with Postgres opt-in; CLAUDE.md run commands updated to match - @duc.do
+
 ### Added
 - SQLite can now be used as the database besides PostgreSQL. Set `DB_BACKEND=sqlite` for a file-based database at `app/data/hgapp.db` (custom location via `SQLITE_PATH`), or pass any SQLAlchemy async URL via `DATABASE_URL`, which takes precedence; the admin override file still wins over both. SQLite connections enable foreign-key enforcement (Postgres parity) and WAL journal mode; `pool_pre_ping` is applied only to networked databases; the legacy startup ALTER-TABLE migrations now run on the Postgres dialect only. New `docker-compose.sqlite.yml` runs the app as a single container with no Postgres service; `aiosqlite` promoted from test-only to a runtime dependency; SQLite artifacts gitignored; README "Database backends" section and CLAUDE.md run instructions added; new `tests/test_database_backend.py` covers URL-resolution precedence and a file-SQLite schema round-trip - @duc.do
 - `.env.example` at the repo root documenting every environment variable the app reads (security keys, database selection, provider keys, limits, SMTP) with generation commands and defaults - @duc.do

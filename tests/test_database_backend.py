@@ -1,4 +1,4 @@
-"""Tests for database backend selection (Postgres default, SQLite via env)."""
+"""Tests for database backend selection (SQLite default, Postgres via env)."""
 
 import os
 from pathlib import Path
@@ -15,12 +15,7 @@ def _clean_db_env(monkeypatch):
         monkeypatch.delenv(var, raising=False)
 
 
-def test_default_is_postgres(_clean_db_env):
-    assert _resolve_database_url() == _POSTGRES_DEFAULT_URL
-
-
-def test_db_backend_sqlite_uses_default_path(_clean_db_env, monkeypatch, tmp_path):
-    monkeypatch.setenv("DB_BACKEND", "sqlite")
+def test_default_is_sqlite(_clean_db_env, monkeypatch, tmp_path):
     monkeypatch.setenv("SQLITE_PATH", str(tmp_path / "data" / "hgapp.db"))
 
     url = _resolve_database_url()
@@ -30,11 +25,16 @@ def test_db_backend_sqlite_uses_default_path(_clean_db_env, monkeypatch, tmp_pat
     assert (tmp_path / "data").is_dir()
 
 
-def test_db_backend_is_case_insensitive(_clean_db_env, monkeypatch, tmp_path):
-    monkeypatch.setenv("DB_BACKEND", "  SQLite ")
-    monkeypatch.setenv("SQLITE_PATH", str(tmp_path / "x.db"))
+def test_db_backend_postgres_uses_local_server(_clean_db_env, monkeypatch):
+    monkeypatch.setenv("DB_BACKEND", "postgres")
 
-    assert _resolve_database_url().startswith("sqlite+aiosqlite:///")
+    assert _resolve_database_url() == _POSTGRES_DEFAULT_URL
+
+
+def test_db_backend_is_case_insensitive(_clean_db_env, monkeypatch):
+    monkeypatch.setenv("DB_BACKEND", "  PostgreSQL ")
+
+    assert _resolve_database_url() == _POSTGRES_DEFAULT_URL
 
 
 def test_database_url_env_wins_over_db_backend(_clean_db_env, monkeypatch):
@@ -46,15 +46,16 @@ def test_database_url_env_wins_over_db_backend(_clean_db_env, monkeypatch):
 
 def test_override_file_url_wins_over_everything(_clean_db_env, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@host:5432/db")
-    monkeypatch.setenv("DB_BACKEND", "sqlite")
+    monkeypatch.setenv("DB_BACKEND", "postgres")
 
     assert _resolve_database_url("sqlite+aiosqlite:///override.db") == "sqlite+aiosqlite:///override.db"
 
 
-def test_unknown_db_backend_falls_back_to_postgres(_clean_db_env, monkeypatch):
+def test_unknown_db_backend_falls_back_to_sqlite(_clean_db_env, monkeypatch, tmp_path):
     monkeypatch.setenv("DB_BACKEND", "mysql")
+    monkeypatch.setenv("SQLITE_PATH", str(tmp_path / "x.db"))
 
-    assert _resolve_database_url() == _POSTGRES_DEFAULT_URL
+    assert _resolve_database_url().startswith("sqlite+aiosqlite:///")
 
 
 @pytest.mark.asyncio

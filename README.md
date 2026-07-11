@@ -33,22 +33,11 @@ A multi-user AI chat application with deep [Prompt Security](https://www.prompt.
 
 ## Quick Start
 
+The app runs directly with Python — no Docker, no database server. A file-based SQLite database is created automatically on first start.
+
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-
-### IMPORTANT — Upgrading from a previous version?
-
-Due to backend changes, remove old containers, volumes, and images before starting fresh:
-
-```bash
-docker compose down -v --rmi all
-```
-
-This stops all containers, deletes the named volumes (database, app data), and removes locally-built images. Your `docker-compose.yml` and config files are not touched.
-
-> **Note:** This will erase all chat history, users, and settings stored in the database. Export anything you need first.
-
+- Python 3.12+
 
 ### 1. Clone the repo
 
@@ -57,23 +46,36 @@ git clone https://github.com/prompt-security/homegrown-ai-app-demo.git
 cd homegrown-ai-app-demo
 ```
 
-### 2. Build and Start all services
+### 2. Install dependencies
 
 ```bash
-docker compose up -d --build
+python3 -m venv .venv
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-> **Note:** Check progress with:
->
-> ```bash
-> docker compose logs -f
-> ```
+### 3. Configure (optional)
 
-### 3. Complete initial setup
+```bash
+cp .env.example .env         # then fill in ENCRYPTION_KEY, SECRET_KEY, provider keys, ...
+```
 
-Open [http://localhost:9100/admin](http://localhost:9100/admin). On first run the admin panel opens directly on the **Settings** page. Work through each section — Security (encryption key, JWT secret, admin password), then any other sections flagged with a red dot — until the nav is clear.
+The app starts fine without a `.env` — ephemeral keys are generated and a warning is logged. Set real keys before any production-like use.
 
-### 4. Open Mode vs User Mode
+### 4. Run the app
+
+```bash
+cd app
+uvicorn main:app --reload --port 8000
+```
+
+The SQLite database is created at `app/data/hgapp.db` on first start and persists across restarts.
+
+### 5. Complete initial setup
+
+Open [http://localhost:8000/admin](http://localhost:8000/admin). On first run the admin panel opens directly on the **Settings** page. Work through each section — Security (encryption key, JWT secret, admin password), then any other sections flagged with a red dot — until the nav is clear.
+
+### Open Mode vs User Mode
 
 The app supports two ways to use the chat interface:
 
@@ -93,42 +95,38 @@ The app supports two ways to use the chat interface:
 
 Both modes can be active simultaneously — the chat UI shows a identification option while still allowing guest access.
 
-### 5. Available URLs
+### Available URLs
 
 | URL | Description |
 | --- | ----------- |
-| [http://localhost:9100](http://localhost:9100) | Chat UI |
-| [http://localhost:9100/admin](http://localhost:9100/admin) | Admin dashboard (requires password) |
+| [http://localhost:8000](http://localhost:8000) | Chat UI |
+| [http://localhost:8000/admin](http://localhost:8000/admin) | Admin dashboard (requires password) |
 
 ---
 
 ## Database backends
 
-The app runs on **PostgreSQL** (default) or **SQLite** - selected by environment variable, no code changes.
+The app runs on **SQLite** (default, zero setup) or **PostgreSQL** - selected by environment variable, no code changes.
 
 | Variable | Effect |
 | -------- | ------ |
-| *(none)* | PostgreSQL from `docker-compose.yml` (`db` service) |
-| `DB_BACKEND=sqlite` | File-based SQLite at `app/data/hgapp.db` |
-| `SQLITE_PATH=/path/to/file.db` | Custom SQLite file location (with `DB_BACKEND=sqlite`) |
+| *(none)* | File-based SQLite at `app/data/hgapp.db`, created automatically |
+| `SQLITE_PATH=/path/to/file.db` | Custom SQLite file location |
+| `DB_BACKEND=postgres` | Local PostgreSQL server (`postgresql+asyncpg://hgapp:hgapp_dev@localhost:5432/hgapp`) |
 | `DATABASE_URL=...` | Any SQLAlchemy async URL - takes precedence over `DB_BACKEND` |
 
-### SQLite via Docker (single container, no Postgres)
+SQLite runs in WAL mode with foreign-key enforcement on, matching Postgres behaviour, and is well suited to demos, laptops, and single-user installs.
+
+### Using PostgreSQL
+
+For multi-user deployments with concurrent writers, point the app at a Postgres server:
 
 ```bash
-docker compose -f docker-compose.sqlite.yml up -d --build
+export DATABASE_URL="postgresql+asyncpg://user:password@host:5432/dbname"
+cd app && uvicorn main:app --port 8000
 ```
 
-The database file lives at `./app/data/hgapp.db` on the host (via the bind mount) and survives container restarts. SQLite runs in WAL mode with foreign-key enforcement on, matching Postgres behaviour.
-
-### SQLite for local development (no Docker at all)
-
-```bash
-pip install -r requirements.txt
-cd app && DB_BACKEND=sqlite uvicorn main:app --reload --port 8000
-```
-
-SQLite is well suited to demos, laptops, and single-user installs. Stay on PostgreSQL for multi-user deployments with concurrent writers.
+(or `DB_BACKEND=postgres` if your local server matches the default credentials above.)
 
 ---
 
