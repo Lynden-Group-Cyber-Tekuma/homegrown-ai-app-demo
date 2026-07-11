@@ -41,7 +41,16 @@ Tests use SQLite in-memory via `conftest.py` — no running Postgres needed.
 
 ## Architecture
 
-**Single-file FastAPI backend** (`app/main.py`, ~4200 lines) with all routes. No separate router files — everything is in `main.py`. Supporting modules are thin:
+**Modular FastAPI backend.** `app/main.py` is a ~25-line entrypoint that builds the FastAPI app (`uvicorn main:app` from `app/`, unchanged) and includes routers from the `app/src/` package tree:
+
+- `src/core/` — `config.py` (env-driven constants + runtime-mutable settings, always accessed as `config.X`), `security.py` (bootstrap secret checks, URL validation), `lifespan.py` (startup: schema init, bootstrap admin, DB-backed settings)
+- `src/llm/` — `routing.py` (provider detection + direct OpenAI-compatible clients), `catalog.py` (discovered/fallback model lists + cache), `discovery.py` (provider `/models` queries + persistence)
+- `src/services/` — `audit.py` (`_log_audit`/`_log_msg`), `serializers.py`, `ps.py` (PS client construction; monkeypatch `ps.PromptSecurityClient` in tests), `email_service.py`, `file_extract.py`, `sanitize_guard.py` (rate/concurrency stores), `scenarios_seed.py`
+- `src/routes/` — one module per route group (`auth`, `system`, `users_me`, `admin_users`, `admin_tenants`, `admin_stats`, `sessions`, `uploads`, `chat`, `sanitize`, `activity`, `app_settings`, `provider_keys`, `email`, `guest`, `scenarios`, `html`), each exposing an `APIRouter` collected by `src/routes/__init__.py`
+
+Rule: runtime-mutable settings (`MAX_FILE_SIZE_MB`, `DEFAULT_DAILY_LIMIT`, `SANITIZE_MAX_*`, `APP_ENV`) live in `src/core/config.py` and must be read/written as `config.X` attributes — never `from ... import` them — so admin-settings PATCHes and test monkeypatching stay effective.
+
+Top-level support modules (imported flat because `app/` is the working directory):
 
 - `models.py` — SQLAlchemy ORM (async): `PSTenant`, `User`, `ChatSession`, `Message`, `APIKey`, `AuditEvent`
 - `schemas.py` — Pydantic v2 request/response types

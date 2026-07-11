@@ -9,6 +9,10 @@ from auth import create_access_token, hash_password
 from crypto import encrypt
 from models import ChatSession, User
 from prompt_security import PromptSecurityResult
+from src.core import config
+from src.llm import routing
+from src.services import ps as ps_service
+from src.services import sanitize_guard
 
 
 @pytest.fixture(autouse=True)
@@ -57,7 +61,6 @@ async def test_non_admin_cannot_access_admin_stats(client, auth_token):
 
 @pytest.mark.asyncio
 async def test_upload_reads_with_size_cap(client, auth_token, monkeypatch):
-    import main
     from starlette.datastructures import UploadFile as StarletteUploadFile
 
     calls: list[int] = []
@@ -76,7 +79,7 @@ async def test_upload_reads_with_size_cap(client, auth_token, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert main.MAX_FILE_SIZE_BYTES + 1 in calls
+    assert config.MAX_FILE_SIZE_BYTES + 1 in calls
 
 
 @pytest.mark.asyncio
@@ -88,8 +91,6 @@ async def test_upload_sanitize_rejects_unsupported_type_before_forward(
     test_tenant,
     monkeypatch,
 ):
-    import main
-
     test_user.ps_tenant_id = test_tenant.id
     test_user.ps_api_key_enc = encrypt("app-id")
     await db.commit()
@@ -100,7 +101,7 @@ async def test_upload_sanitize_rejects_unsupported_type_before_forward(
         def __init__(self, *args, **kwargs):
             self.sanitize_file = sanitize_mock
 
-    monkeypatch.setattr(main, "PromptSecurityClient", _FakePSClient)
+    monkeypatch.setattr(ps_service, "PromptSecurityClient", _FakePSClient)
 
     response = await client.post(
         "/upload/sanitize",
@@ -121,8 +122,6 @@ async def test_upload_sanitize_rejects_oversized_file_before_forward(
     test_tenant,
     monkeypatch,
 ):
-    import main
-
     test_user.ps_tenant_id = test_tenant.id
     test_user.ps_api_key_enc = encrypt("app-id")
     await db.commit()
@@ -133,9 +132,9 @@ async def test_upload_sanitize_rejects_oversized_file_before_forward(
         def __init__(self, *args, **kwargs):
             self.sanitize_file = sanitize_mock
 
-    monkeypatch.setattr(main, "PromptSecurityClient", _FakePSClient)
+    monkeypatch.setattr(ps_service, "PromptSecurityClient", _FakePSClient)
 
-    oversized = b"a" * (main.MAX_FILE_SIZE_BYTES + 1)
+    oversized = b"a" * (config.MAX_FILE_SIZE_BYTES + 1)
     response = await client.post(
         "/upload/sanitize",
         files={"file": ("big.txt", oversized, "text/plain")},
@@ -155,8 +154,6 @@ async def test_upload_sanitize_rejects_when_concurrency_limit_reached(
     test_tenant,
     monkeypatch,
 ):
-    import main
-
     test_user.ps_tenant_id = test_tenant.id
     test_user.ps_api_key_enc = encrypt("app-id")
     await db.commit()
@@ -165,8 +162,8 @@ async def test_upload_sanitize_rejects_when_concurrency_limit_reached(
         def __init__(self, *args, **kwargs):
             self.sanitize_file = AsyncMock()
 
-    monkeypatch.setattr(main, "PromptSecurityClient", _FakePSClient)
-    monkeypatch.setitem(main._sanitize_user_active, test_user.id, main.SANITIZE_MAX_CONCURRENT_PER_USER)
+    monkeypatch.setattr(ps_service, "PromptSecurityClient", _FakePSClient)
+    monkeypatch.setitem(sanitize_guard._sanitize_user_active, test_user.id, config.SANITIZE_MAX_CONCURRENT_PER_USER)
 
     response = await client.post(
         "/upload/sanitize",
@@ -187,8 +184,6 @@ async def test_upload_sanitize_rejects_when_rate_limit_reached(
     test_tenant,
     monkeypatch,
 ):
-    import main
-
     test_user.ps_tenant_id = test_tenant.id
     test_user.ps_api_key_enc = encrypt("app-id")
     await db.commit()
@@ -197,10 +192,10 @@ async def test_upload_sanitize_rejects_when_rate_limit_reached(
         def __init__(self, *args, **kwargs):
             self.sanitize_file = AsyncMock()
 
-    monkeypatch.setattr(main, "PromptSecurityClient", _FakePSClient)
-    monkeypatch.setattr(main, "SANITIZE_MAX_PER_MINUTE", 1)
-    main._sanitize_user_timestamps[test_user.id].clear()
-    main._sanitize_user_timestamps[test_user.id].append(main.time.time())
+    monkeypatch.setattr(ps_service, "PromptSecurityClient", _FakePSClient)
+    monkeypatch.setattr(config, "SANITIZE_MAX_PER_MINUTE", 1)
+    sanitize_guard._sanitize_user_timestamps[test_user.id].clear()
+    sanitize_guard._sanitize_user_timestamps[test_user.id].append(sanitize_guard.time.time())
 
     response = await client.post(
         "/upload/sanitize",
@@ -221,8 +216,6 @@ async def test_upload_sanitize_unsupported_does_not_consume_rate_limit(
     test_tenant,
     monkeypatch,
 ):
-    import main
-
     test_user.ps_tenant_id = test_tenant.id
     test_user.ps_api_key_enc = encrypt("app-id")
     await db.commit()
@@ -233,10 +226,10 @@ async def test_upload_sanitize_unsupported_does_not_consume_rate_limit(
         def __init__(self, *args, **kwargs):
             self.sanitize_file = sanitize_mock
 
-    monkeypatch.setattr(main, "PromptSecurityClient", _FakePSClient)
-    monkeypatch.setattr(main, "SANITIZE_MAX_PER_MINUTE", 1)
-    main._sanitize_user_timestamps[test_user.id].clear()
-    main._sanitize_user_active[test_user.id] = 0
+    monkeypatch.setattr(ps_service, "PromptSecurityClient", _FakePSClient)
+    monkeypatch.setattr(config, "SANITIZE_MAX_PER_MINUTE", 1)
+    sanitize_guard._sanitize_user_timestamps[test_user.id].clear()
+    sanitize_guard._sanitize_user_active[test_user.id] = 0
 
     bad_response = await client.post(
         "/upload/sanitize",
@@ -263,8 +256,6 @@ async def test_upload_sanitize_oversized_does_not_consume_rate_limit(
     test_tenant,
     monkeypatch,
 ):
-    import main
-
     test_user.ps_tenant_id = test_tenant.id
     test_user.ps_api_key_enc = encrypt("app-id")
     await db.commit()
@@ -275,12 +266,12 @@ async def test_upload_sanitize_oversized_does_not_consume_rate_limit(
         def __init__(self, *args, **kwargs):
             self.sanitize_file = sanitize_mock
 
-    monkeypatch.setattr(main, "PromptSecurityClient", _FakePSClient)
-    monkeypatch.setattr(main, "SANITIZE_MAX_PER_MINUTE", 1)
-    main._sanitize_user_timestamps[test_user.id].clear()
-    main._sanitize_user_active[test_user.id] = 0
+    monkeypatch.setattr(ps_service, "PromptSecurityClient", _FakePSClient)
+    monkeypatch.setattr(config, "SANITIZE_MAX_PER_MINUTE", 1)
+    sanitize_guard._sanitize_user_timestamps[test_user.id].clear()
+    sanitize_guard._sanitize_user_active[test_user.id] = 0
 
-    oversized = b"a" * (main.MAX_FILE_SIZE_BYTES + 1)
+    oversized = b"a" * (config.MAX_FILE_SIZE_BYTES + 1)
     bad_response = await client.post(
         "/upload/sanitize",
         files={"file": ("big.txt", oversized, "text/plain")},
@@ -306,8 +297,6 @@ async def test_upload_sanitize_successful_request_consumes_rate_limit(
     test_tenant,
     monkeypatch,
 ):
-    import main
-
     test_user.ps_tenant_id = test_tenant.id
     test_user.ps_api_key_enc = encrypt("app-id")
     await db.commit()
@@ -318,10 +307,10 @@ async def test_upload_sanitize_successful_request_consumes_rate_limit(
         def __init__(self, *args, **kwargs):
             self.sanitize_file = sanitize_mock
 
-    monkeypatch.setattr(main, "PromptSecurityClient", _FakePSClient)
-    monkeypatch.setattr(main, "SANITIZE_MAX_PER_MINUTE", 1)
-    main._sanitize_user_timestamps[test_user.id].clear()
-    main._sanitize_user_active[test_user.id] = 0
+    monkeypatch.setattr(ps_service, "PromptSecurityClient", _FakePSClient)
+    monkeypatch.setattr(config, "SANITIZE_MAX_PER_MINUTE", 1)
+    sanitize_guard._sanitize_user_timestamps[test_user.id].clear()
+    sanitize_guard._sanitize_user_active[test_user.id] = 0
 
     first_response = await client.post(
         "/upload/sanitize",
@@ -481,9 +470,9 @@ async def test_chat_stream_admin_can_bypass_ps_with_skip_flag(client, db, test_t
     llm.chat.completions.create = AsyncMock(return_value=_fake_stream())
 
     with (
-        patch("main._user_llm_client", return_value=(llm, "gpt-4o-mini")),
-        patch("main.PromptSecurityClient.protect_prompt", new=AsyncMock(return_value=_ps_pass_result())) as mock_prompt,
-        patch("main.PromptSecurityClient.protect_response", new=AsyncMock(return_value=_ps_pass_result())) as mock_response,
+        patch("src.llm.routing._user_llm_client", return_value=(llm, "gpt-4o-mini")),
+        patch("prompt_security.PromptSecurityClient.protect_prompt", new=AsyncMock(return_value=_ps_pass_result())) as mock_prompt,
+        patch("prompt_security.PromptSecurityClient.protect_response", new=AsyncMock(return_value=_ps_pass_result())) as mock_response,
     ):
         response = await client.post(
             "/chat/stream",
