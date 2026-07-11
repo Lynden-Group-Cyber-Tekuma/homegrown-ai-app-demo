@@ -11,8 +11,6 @@ os.environ["SECRET_KEY"] = "test-secret-key-for-unit-tests"
 os.environ["ENCRYPTION_KEY"] = ""  # not needed for most tests
 os.environ["ADMIN_EMAIL"] = "admin@test.com"
 os.environ["ADMIN_PASSWORD"] = "testpass"
-os.environ["LITELLM_BASE_URL"] = "http://litellm:4000"
-os.environ["LITELLM_MASTER_KEY"] = ""
 
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine

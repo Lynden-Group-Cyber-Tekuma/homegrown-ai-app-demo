@@ -8,6 +8,13 @@ from pathlib import Path
 import pytest
 from fastapi import HTTPException
 
+from auth import get_current_api_key, hash_api_key
+from crypto import encrypt
+from models import APIKey
+from schemas import PSTenantCreate, PSTenantUpdate
+from src.core import config, security
+from src.services import ps
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -20,24 +27,20 @@ def _chdir_to_app():
 
 
 def test_validate_security_bootstrap_config_rejects_insecure_defaults(monkeypatch):
-    import main
-
-    monkeypatch.setattr(main, "APP_ENV", "production")
+    monkeypatch.setattr(config, "APP_ENV", "production")
     monkeypatch.setenv("SECRET_KEY", "dev_secret_change_me")
     monkeypatch.setenv("ADMIN_PASSWORD", "admin")
 
     with pytest.raises(RuntimeError):
-        main._validate_security_bootstrap_config()
+        security._validate_security_bootstrap_config()
 
 
 def test_validate_security_bootstrap_config_allows_secure_values(monkeypatch):
-    import main
-
-    monkeypatch.setattr(main, "APP_ENV", "production")
+    monkeypatch.setattr(config, "APP_ENV", "production")
     monkeypatch.setenv("SECRET_KEY", "super-long-random-secret-value-12345")
     monkeypatch.setenv("ADMIN_PASSWORD", "StrongAdminPass!123")
 
-    main._validate_security_bootstrap_config()
+    security._validate_security_bootstrap_config()
 
 
 def test_frontend_uses_dompurify_for_markdown_rendering():
@@ -75,8 +78,6 @@ def test_frontend_gates_compare_mode_to_ps_configured_users():
 
 
 def test_ps_tenant_schema_documents_https_public_host_contract():
-    from schemas import PSTenantCreate, PSTenantUpdate
-
     def string_schema(prop: dict) -> dict:
         if "anyOf" not in prop:
             return prop
@@ -95,15 +96,7 @@ def test_ps_tenant_schema_documents_https_public_host_contract():
         assert string_schema(gateway_url)["pattern"] == "^https://"
 
 
-def test_dockerfile_uses_non_root_runtime_user():
-    dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
-
-    assert "\nUSER appuser\n" in dockerfile
-
-
 def test_api_key_hash_is_keyed():
-    from auth import hash_api_key
-
     raw_key = "hg_live_example"
     assert hash_api_key(raw_key) == hash_api_key(raw_key)
     assert hash_api_key(raw_key) != sha256(raw_key.encode()).hexdigest()
@@ -111,9 +104,6 @@ def test_api_key_hash_is_keyed():
 
 @pytest.mark.asyncio
 async def test_legacy_api_key_hash_is_accepted_and_migrated(db, test_user):
-    from auth import get_current_api_key, hash_api_key
-    from models import APIKey
-
     raw_key = "hg_live_legacy_example"
     key = APIKey(
         user_id=test_user.id,
@@ -146,53 +136,42 @@ async def test_legacy_api_key_hash_is_accepted_and_migrated(db, test_user):
     ],
 )
 def test_external_url_validation_rejects_unsafe_targets(url):
-    import main
-
     with pytest.raises(HTTPException):
-        main._validate_external_https_url(url, "gateway_url")
+        security._validate_external_https_url(url, "gateway_url")
 
 
 def test_external_url_validation_allows_https_hostnames():
-    import main
-
     assert (
-        main._validate_external_https_url("https://test.prompt.security/v1", "gateway_url")
+        security._validate_external_https_url("https://test.prompt.security/v1", "gateway_url")
         == "https://test.prompt.security/v1"
     )
 
 
 def test_legacy_public_http_url_can_be_normalized():
-    import main
-
-    assert main._normalize_legacy_public_http_url("http://test.prompt.security/api") == "https://test.prompt.security/api"
-    assert main._normalize_legacy_public_http_url("http://localhost/api") is None
-    assert main._normalize_legacy_public_http_url("http://10.0.0.1/api") is None
+    assert security._normalize_legacy_public_http_url("http://test.prompt.security/api") == "https://test.prompt.security/api"
+    assert security._normalize_legacy_public_http_url("http://localhost/api") is None
+    assert security._normalize_legacy_public_http_url("http://10.0.0.1/api") is None
 
 
 @pytest.mark.asyncio
 async def test_invalid_persisted_ps_base_url_soft_fails(db, test_user, test_tenant):
-    import main
-    from crypto import encrypt
-
     test_tenant.base_url = "http://localhost"
     test_user.ps_tenant_id = test_tenant.id
     test_user.ps_tenant = test_tenant
     test_user.ps_api_key_enc = encrypt("app-id")
     test_user.ps_enabled = True
 
-    assert main._build_ps_api_client(test_user) is None
+    assert ps._build_ps_api_client(test_user) is None
 
 
 @pytest.mark.asyncio
 async def test_legacy_invalid_ps_tenant_disables_existing_users(db, test_user, test_tenant):
-    import main
-
     test_tenant.base_url = "http://localhost"
     test_user.ps_tenant_id = test_tenant.id
     test_user.ps_enabled = True
     await db.commit()
 
-    await main._migrate_legacy_ps_tenant_urls(db)
+    await ps._migrate_legacy_ps_tenant_urls(db)
     await db.refresh(test_user)
 
     assert test_user.ps_enabled is False

@@ -14,18 +14,18 @@ This project maintains a `CHANGELOG.md` at the repo root in [Keep a Changelog](h
 
 ## Commands
 
-### Run the app (Docker, recommended)
+### Run the app (SQLite default — no Docker, no database server)
 ```bash
-docker compose up -d          # start all services
-docker compose up -d --build app  # rebuild after Python changes
-docker logs -f demo-hgapp-litellm-1  # watch LiteLLM migrations on first run
+pip install -r requirements.txt
+cd app && uvicorn main:app --reload --port 8000   # SQLite file created at app/data/hgapp.db
 ```
 
-### Run locally without Docker
+### Run against PostgreSQL instead
 ```bash
-docker compose up -d db       # just the Postgres container
-pip install -r requirements.txt
-cd app && uvicorn main:app --reload --port 8000
+# local server matching the defaults (hgapp:hgapp_dev@localhost:5432/hgapp):
+cd app && DB_BACKEND=postgres uvicorn main:app --reload --port 8000
+# or any server via a full URL:
+cd app && DATABASE_URL="postgresql+asyncpg://user:pass@host:5432/dbname" uvicorn main:app --port 8000
 ```
 
 ### Run tests
@@ -36,13 +36,22 @@ pytest tests/test_app_endpoints.py          # single file
 pytest tests/test_chat_stream.py::test_name # single test
 ```
 
-Tests use SQLite in-memory via `conftest.py` — no running Postgres or LiteLLM needed.
+Tests use SQLite in-memory via `conftest.py` — no running Postgres needed.
 
 ---
 
 ## Architecture
 
-**Single-file FastAPI backend** (`app/main.py`, ~4200 lines) with all routes. No separate router files — everything is in `main.py`. Supporting modules are thin:
+**Modular FastAPI backend.** `app/main.py` is a ~25-line entrypoint that builds the FastAPI app (`uvicorn main:app` from `app/`, unchanged) and includes routers from the `app/src/` package tree:
+
+- `src/core/` — `config.py` (env-driven constants + runtime-mutable settings, always accessed as `config.X`), `security.py` (bootstrap secret checks, URL validation), `lifespan.py` (startup: schema init, bootstrap admin, DB-backed settings)
+- `src/llm/` — `routing.py` (provider detection + direct OpenAI-compatible clients), `catalog.py` (discovered/fallback model lists + cache), `discovery.py` (provider `/models` queries + persistence)
+- `src/services/` — `audit.py` (`_log_audit`/`_log_msg`), `serializers.py`, `ps.py` (PS client construction; monkeypatch `ps.PromptSecurityClient` in tests), `email_service.py`, `file_extract.py`, `sanitize_guard.py` (rate/concurrency stores), `scenarios_seed.py`
+- `src/routes/` — one module per route group (`auth`, `system`, `users_me`, `admin_users`, `admin_tenants`, `admin_stats`, `sessions`, `uploads`, `chat`, `sanitize`, `activity`, `app_settings`, `provider_keys`, `email`, `guest`, `scenarios`, `html`), each exposing an `APIRouter` collected by `src/routes/__init__.py`
+
+Rule: runtime-mutable settings (`MAX_FILE_SIZE_MB`, `DEFAULT_DAILY_LIMIT`, `SANITIZE_MAX_*`, `APP_ENV`) live in `src/core/config.py` and must be read/written as `config.X` attributes — never `from ... import` them — so admin-settings PATCHes and test monkeypatching stay effective.
+
+Top-level support modules (imported flat because `app/` is the working directory):
 
 - `models.py` — SQLAlchemy ORM (async): `PSTenant`, `User`, `ChatSession`, `Message`, `APIKey`, `AuditEvent`
 - `schemas.py` — Pydantic v2 request/response types
@@ -50,16 +59,14 @@ Tests use SQLite in-memory via `conftest.py` — no running Postgres or LiteLLM 
 - `crypto.py` — Fernet encryption for LLM API keys and PS App IDs stored in DB
 - `database.py` — async SQLAlchemy engine + `get_db` session dependency
 - `prompt_security.py` — `PromptSecurityClient`: wraps `POST /api/protect` and `POST /api/sanitizeFile`
-- `token_counter.py` — token estimation via LiteLLM
+- `token_counter.py` — token estimation via the `litellm` Python library's tokenizer (library only — there is no LiteLLM proxy service)
 - `app/static/` — three self-contained HTML files (no build step, no npm): `index.html` (chat UI), `admin.html` (dashboard), `login.html`
 
-**LiteLLM** runs as a separate Docker service on port 4000, configured via `litellm/config.yaml`. The FastAPI app talks to it over the OpenAI-compatible API using `AsyncOpenAI(base_url=LITELLM_BASE_URL)`.
-
-**Direct provider routing** — when a shared API key is saved for OpenAI, Anthropic, Google, Perplexity, or OpenRouter in the admin Settings panel, the app queries that provider's `/models` endpoint and adds all available models to the picker as `provider/model-id` IDs (e.g. `openai/gpt-4.1`). These calls bypass LiteLLM entirely via `_user_llm_client()` / `_guest_llm_client()`. Discovered models are persisted in the `AppSetting` table.
+**Direct provider routing** — the only LLM path. When a shared API key is saved for OpenAI, Anthropic, Google, Perplexity, or OpenRouter in the admin Settings panel, the app queries that provider's `/models` endpoint and adds all available models to the picker as `provider/model-id` IDs (e.g. `openai/gpt-4.1`). Chat calls go directly to the provider's OpenAI-compatible endpoint via `_user_llm_client()` / `_guest_llm_client()` (per-user key → shared key; `LookupError` if neither is set). Discovered models are persisted in the `AppSetting` table.
 
 ### Key data flows
 
-**Chat (streaming):** `POST /chat/stream` → PS prompt scan (API mode) or pass-through (gateway mode) → LLM call (LiteLLM proxy for config-file models, or direct provider API for `provider/`-prefixed models) → PS response scan → SSE to browser. Gateway mode routes through the PS proxy URL instead of calling PS explicitly.
+**Chat (streaming):** `POST /chat/stream` → PS prompt scan (API mode) or pass-through (gateway mode) → direct provider LLM call → PS response scan → SSE to browser. Gateway mode routes through the PS proxy URL instead of calling PS explicitly.
 
 **File scan:** `POST /upload/sanitize` or `POST /guest/upload/sanitize` → PS two-step async API: `POST /api/sanitizeFile` (returns `jobId`) → `GET /api/sanitizeFile?jobId=X` (poll until `status=done`) → findings rendered with per-category chips and entity detail rows. Result fields live under `metadata.findings` in the PS response.
 
@@ -68,12 +75,17 @@ Tests use SQLite in-memory via `conftest.py` — no running Postgres or LiteLLM 
 **Audit log:** Config changes (PS settings, LLM keys, user/tenant CRUD) write `AuditEvent` rows alongside chat `Message` rows; both appear in the admin activity log.
 
 ### Environment variables that change runtime behavior
+- `DB_BACKEND` — `postgres` switches to a local PostgreSQL server; default is file-based SQLite
+- `SQLITE_PATH` — SQLite file location (default `app/data/hgapp.db`)
+- `DATABASE_URL` — full SQLAlchemy async URL; takes precedence over `DB_BACKEND`
 - `SHOW_LLM_KEY_SETTINGS` — shows per-user LLM key fields in the UI
 - `APP_ENV` / `ENV` — used for environment detection
 - `DEFAULT_DAILY_LIMIT` — per-user message cap (null = unlimited)
 - `MAX_FILE_SIZE_MB` — upload size limit (default 10 MB)
 - `SANITIZE_MAX_PER_MINUTE` — rate limit for file scans per user (default 5)
 - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `PERPLEXITY_API_KEY` / `OPENROUTER_API_KEY` — shared provider keys (can also be set via Admin → Settings)
+
+See `.env.example` at the repo root for the complete annotated list.
 
 ---
 

@@ -35,7 +35,7 @@ try:
 except Exception:
     _key = Fernet.generate_key()
     _fernet = Fernet(_key)
-    logger.warning("ENCRYPTION_KEY not set or invalid — using ephemeral key. Set ENCRYPTION_KEY in docker-compose.yml (or as an environment variable) for production.")
+    logger.warning("ENCRYPTION_KEY not set or invalid — using ephemeral key. Set the ENCRYPTION_KEY environment variable (see .env.example) for production.")
 
 
 def encrypt(value: str) -> str:
