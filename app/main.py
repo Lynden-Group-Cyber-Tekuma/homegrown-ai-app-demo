@@ -35,7 +35,7 @@ load_dotenv()
 
 from auth import (
     ALGORITHM, SECRET_KEY, TOKEN_TTL_H,
-    create_access_token, create_api_key, get_current_api_key, get_current_user,
+    create_access_token, create_api_key, get_current_user,
     hash_api_key, hash_password, require_admin, reset_secret_key, set_secret_key, verify_password,
 )
 from crypto import (
@@ -3126,31 +3126,6 @@ def _update_litellm_ollama_models(model_ids: list[str]) -> None:
     logger.info("Ensured ollama/* wildcard entry in litellm/config.yaml")
 
 
-async def _restart_litellm_and_refresh() -> None:
-    """Restart the LiteLLM container so it picks up the updated config, then rebuild the model cache."""
-    if not _DOCKER_SDK_AVAILABLE:
-        logger.warning("Docker SDK unavailable — cannot restart LiteLLM")
-        return
-    try:
-        client = _docker_sdk.from_env()
-        containers = client.containers.list(filters={
-            "label": [
-                "com.docker.compose.service=litellm",
-                f"com.docker.compose.project={COMPOSE_PROJECT_NAME}",
-            ]
-        })
-        if not containers:
-            logger.warning("LiteLLM container not found — skipping restart")
-            return
-        containers[0].restart()
-        logger.info("LiteLLM container restarted to pick up new Ollama model config")
-        await asyncio.sleep(8)          # wait for LiteLLM to come back up
-        await refresh_model_cache()
-        logger.info("Model cache refreshed after LiteLLM restart")
-    except Exception as exc:
-        logger.warning("Failed to restart LiteLLM container: %s", exc)
-
-
 @app.post("/admin/ollama/test")
 async def test_ollama_connection(
     body: dict,
@@ -4265,19 +4240,6 @@ def _build_ps_api_client(user: User) -> Optional[PromptSecurityClient]:
     if not ps_app_id:
         return None
     return PromptSecurityClient(base_url=user.ps_tenant.base_url, app_id=ps_app_id)
-
-
-def _extract_response_text(resp) -> str:
-    text = getattr(resp, "output_text", None)
-    if text:
-        return text
-
-    choices = getattr(resp, "choices", None) or []
-    if choices:
-        msg = getattr(choices[0], "message", None)
-        if msg and getattr(msg, "content", None):
-            return msg.content
-    return ""
 
 
 async def _log_audit(

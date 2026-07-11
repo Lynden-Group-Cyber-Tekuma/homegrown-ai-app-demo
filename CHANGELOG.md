@@ -1,5 +1,9 @@
 # Changelog
 
+## [2026-07-11]
+### Removed
+- Dead code cleanup: removed four functions with no callers anywhere in the codebase - `_restart_litellm_and_refresh()` and `_extract_response_text()` from `app/main.py`, plus `write_db_override()` and `rebuild_engine()` from `app/database.py` (leftovers from the retired Setup Wizard DB password change flow); also removed the unused `get_current_api_key` import from `app/main.py` (the function itself stays in `app/auth.py` - it is exercised by `tests/test_security_hardening.py`). The security helpers `_validate_external_https_url()`, `_normalize_legacy_public_http_url()`, `_migrate_legacy_ps_tenant_urls()` and `_build_ps_api_client()` were deliberately kept: they have no production callers yet but are covered by the security hardening regression suite - @duc.do
+
 ## [2026-06-15]
 ### Fixed
 - PS API tests now return `action=modify` for PII: isolated each test to a single detector (PII tests enable only Sensitive Data; injection tests enable only Prompt Injection Engine); previously the full policy's Data Privacy Guidelines, Natural Language Guardrails, and Topics Detector fired on financial/HR content in test prompts and returned `action=block` instead of `action=modify` — @ori.tabac

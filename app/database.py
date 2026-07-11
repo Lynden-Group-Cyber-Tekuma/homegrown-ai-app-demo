@@ -46,20 +46,3 @@ class Base(DeclarativeBase):
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
-
-
-def write_db_override(new_url: str) -> None:
-    """Persist a new DATABASE_URL to the override file so restarts use the new password."""
-    _DB_OVERRIDE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _DB_OVERRIDE_FILE.write_text(json.dumps({"database_url": new_url}))
-
-
-async def rebuild_engine(new_url: str) -> None:
-    """Hot-swap the SQLAlchemy engine in-process to use new_url. Safe to call while requests are in flight."""
-    global DATABASE_URL, engine, AsyncSessionLocal
-    old_engine = engine
-    DATABASE_URL = new_url
-    engine = create_async_engine(new_url, echo=False, pool_pre_ping=True)
-    AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    await old_engine.dispose()
-    logger.info("Database engine hot-swapped to new credentials")
