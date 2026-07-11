@@ -158,23 +158,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
 .settings-nav-danger{color:var(--red,#e74c3c) !important}
 .settings-nav-danger.active{color:var(--red,#e74c3c) !important;border-left-color:var(--red,#e74c3c) !important;background:rgba(231,76,60,0.07) !important}
 .settings-nav-divider{height:1px;background:var(--border);margin:8px 10px;flex-shrink:0}
-.mbf-btn{padding:5px 12px;font-size:11px;font-weight:500;border-radius:20px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);cursor:pointer;transition:all .15s}
-.mbf-btn:hover{color:var(--text);border-color:var(--text-muted)}
-.mbf-btn.active{background:rgba(108,99,255,0.15);border-color:var(--accent);color:var(--accent)}
-.mb-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s}
-.mb-card:hover{border-color:rgba(108,99,255,0.4)}
-.mb-card[data-has-download="true"]{border-color:rgba(46,204,113,0.5)}
-.mb-card[data-has-download="true"]:hover{border-color:rgba(46,204,113,0.8)}
-.mb-cap{display:inline-flex;align-items:center;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600}
-.mb-size{font-size:10px;padding:2px 8px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--text-muted);cursor:pointer;transition:all .15s;user-select:none;position:relative;display:inline-flex;align-items:center;gap:2px}
-.mb-size:hover{border-color:var(--accent);color:var(--text)}
-.mb-size[data-latest="true"]{border-color:rgba(46,204,113,0.55);color:var(--green,#2ecc71)}
-.mb-size[data-downloaded="true"]{background:rgba(46,204,113,0.13);color:var(--green,#2ecc71)}
-.mb-size[data-downloaded="true"][data-latest="true"]{border-color:rgba(46,204,113,0.55)}
-.mb-size.active{background:rgba(108,99,255,0.15);border-color:var(--accent);color:var(--accent);font-weight:600}
-.mb-size-del{display:none;align-items:center;justify-content:center;margin-left:3px;padding:0 3px;border-radius:4px;font-size:10px;line-height:1;color:var(--red,#e74c3c);background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.35);cursor:pointer;transition:all .15s}
-.mb-size-del:hover{background:rgba(231,76,60,0.85);color:#fff;border-color:transparent}
-.mb-size[data-downloaded="true"]:hover .mb-size-del{display:inline-flex}
 .settings-pane-area{flex:1;min-width:0;overflow-y:auto}
 .pane-unsaved-banner{display:none;align-items:center;gap:8px;padding:8px 16px;background:rgba(243,156,18,0.1);border-bottom:1px solid rgba(243,156,18,0.35);font-size:12px;color:#f39c12;flex-shrink:0}
 .field-unset{border:1px solid rgba(231,76,60,0.5)!important;border-radius:8px!important;background:rgba(231,76,60,0.04)!important}
@@ -478,7 +461,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
           <button class="settings-nav-item"         data-pane="sp-security"    onclick="switchSettingsPane('sp-security')">Security <span class="snav-dot" id="dot-sp-security"    style="display:none;font-size:9px;vertical-align:middle;margin-left:4px;color:var(--red,#e74c3c)">●</span></button>
           <button class="settings-nav-item"         data-pane="sp-email"       onclick="switchSettingsPane('sp-email')">Email <span class="snav-dot" id="dot-sp-email"       style="display:none;font-size:9px;vertical-align:middle;margin-left:4px;color:var(--red,#e74c3c)">●</span></button>
           <button class="settings-nav-item"         data-pane="sp-psregions"   onclick="switchSettingsPane('sp-psregions')">PS Regions <span class="snav-dot" id="dot-sp-psregions"  style="display:none;font-size:9px;vertical-align:middle;margin-left:4px;color:var(--red,#e74c3c)">●</span></button>
-          <button class="settings-nav-item"         data-pane="sp-ollama"      onclick="switchSettingsPane('sp-ollama')">Ollama <span id="ollamaNavDot" style="display:none;font-size:9px;vertical-align:middle;margin-left:4px">●</span></button>
           <button class="settings-nav-item"         data-pane="sp-llmkeys"     onclick="switchSettingsPane('sp-llmkeys')">LLM Keys <span class="snav-dot" id="dot-sp-llmkeys"     style="display:none;font-size:9px;vertical-align:middle;margin-left:4px;color:var(--red,#e74c3c)">●</span></button>
           <div class="settings-nav-divider"></div>
           <button class="settings-nav-item settings-nav-danger" data-pane="sp-danger" onclick="switchSettingsPane('sp-danger')">Danger Zone</button>
@@ -794,103 +776,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
                 <thead><tr><th>Name</th><th>Base URL</th><th>Gateway URL</th><th>Users</th><th></th></tr></thead>
                 <tbody id="tenantTable"></tbody>
               </table>
-            </div>
-          </div>
-
-          <!-- ── Ollama pane ── -->
-          <div id="sp-ollama" class="settings-pane">
-            <div class="pane-unsaved-banner" id="unsaved-sp-ollama">⚠ Unsaved changes — click <strong style="margin:0 3px">Save</strong> to apply.</div>
-            <div class="panel">
-              <div class="panel-head" style="flex-direction:column;align-items:flex-start;gap:8px">
-                <h3>Enable Ollama</h3>
-                <label class="pill-toggle" style="margin:0" title="Enable Ollama">
-                  <input type="checkbox" id="ollamaEnabled" onchange="onOllamaToggle(this.checked)">
-                  <span class="pill-track"></span>
-                </label>
-              </div>
-
-              <div id="ollamaDetails" style="display:none">
-
-                <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-                  <div class="setting-label">Service</div>
-                  <div class="setting-desc">Start or stop the Ollama Docker container. Requires Docker socket to be mounted (see <code>docker-compose.yml</code>).</div>
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <span id="ollamaServiceBadge" style="font-size:11px;padding:3px 10px;border-radius:12px;background:rgba(150,150,150,0.15);color:var(--muted);white-space:nowrap">Checking…</span>
-                    <button id="ollamaServiceBtn" class="btn btn-sm" onclick="toggleOllamaService()" style="white-space:nowrap;min-width:64px" disabled>…</button>
-                    <button class="btn btn-sm" onclick="refreshOllamaServiceStatus()" style="padding:5px 8px;font-size:13px" title="Refresh status">↺</button>
-                  </div>
-                </div>
-
-                <div class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-                  <div class="setting-label">Base URL</div>
-                  <div class="setting-desc">
-                    URL of the Ollama instance reachable from inside Docker.
-                    Default: <code>http://ollama:11434</code> (Docker Compose service).
-                    <br><span style="color:var(--yellow)">Changing this requires a LiteLLM container restart to take effect.</span>
-                  </div>
-                  <div style="display:flex;gap:8px;align-items:center;width:100%;max-width:520px">
-                    <input type="text" id="appOllamaUrl" placeholder="http://ollama:11434"
-                      autocomplete="off" spellcheck="false"
-                      style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:6px 10px;outline:none">
-                    <button id="ollamaTestBtn" class="btn btn-sm" onclick="testOllamaConnection()"
-                      style="white-space:nowrap;flex-shrink:0">Test Connection</button>
-                  </div>
-                  <div id="ollamaTestResult" style="display:none;font-size:12px;margin-top:2px"></div>
-                </div>
-
-                <div id="row-ollama-model" class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-                  <div class="setting-label">Active Model</div>
-                  <div class="setting-desc">
-                    Click a model to set it as active — takes effect immediately, no restart required.
-                    <span style="color:var(--green,#2ecc71)">●</span> Green = currently active.
-                    Use <strong>Detect</strong> to refresh the list from your Ollama instance.
-                  </div>
-                  <div id="ollamaModelPicker" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;align-items:center">
-                    <span style="font-size:12px;color:var(--muted)">Click Detect to load available models.</span>
-                  </div>
-                  <div id="ollamaNoModelWarning" style="display:none;font-size:12px;padding:6px 10px;border-radius:6px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.4);color:var(--red,#e74c3c)">
-                    ⚠ No model is selected. Pull a model below, then click <strong>Detect Models</strong> to populate the list.
-                  </div>
-                  <div id="ollamaUnsavedWarning" style="display:none;font-size:12px;padding:6px 10px;border-radius:6px;background:rgba(243,156,18,0.12);border:1px solid rgba(243,156,18,0.4);color:#f39c12">
-                    ⚠ Save settings first — the service must be started before detecting or pulling models.
-                  </div>
-                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                    <button id="ollamaDetectBtn" class="btn btn-sm" onclick="detectOllamaModels()">Detect Models</button>
-                    <span id="ollamaDetectStatus" style="font-size:12px;color:var(--muted);display:none"></span>
-                  </div>
-                  <input type="hidden" id="appOllamaModels">
-                </div>
-
-                <div id="row-ollama-pull" class="setting-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-                  <div class="setting-label">Pull a Model</div>
-                  <div class="setting-desc">
-                    Download a model to your Ollama instance. Examples: <code>gemma3:270m</code>, <code>llama3.2:3b</code>, <code>mistral:7b</code>.
-                    Find models at <a href="https://ollama.com/library" target="_blank" style="color:var(--blue,#63b3ed)">ollama.com/library</a>.
-                  </div>
-                  <div style="display:flex;gap:8px;align-items:center;max-width:520px;width:100%">
-                    <input type="text" id="ollamaPullInput" placeholder="gemma3:270m"
-                      autocomplete="off" spellcheck="false"
-                      style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:6px 10px;outline:none"
-                      onkeydown="if(event.key==='Enter')startModelPull()">
-                    <button id="ollamaPullBtn" class="btn btn-sm btn-primary" onclick="startModelPull()" style="white-space:nowrap;flex-shrink:0">Pull</button>
-                    <button id="ollamaCancelBtn" class="btn btn-sm btn-danger" onclick="cancelModelPull()" style="white-space:nowrap;flex-shrink:0;display:none">Cancel</button>
-                    <button id="ollamaBrowseBtn" class="btn btn-sm btn-outline" onclick="openModelBrowser()" style="white-space:nowrap;flex-shrink:0">Browse Models</button>
-                  </div>
-                  <div id="ollamaPullProgress" style="display:none;width:100%;max-width:520px">
-                    <div style="background:var(--surface2);border-radius:4px;height:6px;overflow:hidden;margin-bottom:4px">
-                      <div id="ollamaPullBar" style="height:100%;background:var(--blue,#63b3ed);width:0%;transition:width 0.3s"></div>
-                    </div>
-                    <div id="ollamaPullText" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
-                  </div>
-                </div>
-
-              </div>
-
-              <div class="setting-row" style="border-top:none;padding-top:0">
-                <span id="appSettingsOllamaErr" style="font-size:12px;color:var(--red);display:none"></span>
-                <span id="appSettingsOllamaOk" style="font-size:12px;color:var(--green);display:none">Saved</span>
-                <button id="appSettingsOllamaSaveBtn" class="btn btn-primary btn-sm" onclick="saveOllamaSettings()">Save</button>
-              </div>
             </div>
           </div>
 
@@ -1212,7 +1097,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     document.getElementById('settingFixModel').checked = fixEnabled;
     document.getElementById('fixModelPickerWrap').style.display = fixEnabled ? 'block' : 'none';
     if (fixEnabled) await populateFixModelSelect(settings.fixed_model_id);
-    // Fix Model is always available — Ollama and LLM providers coexist in the unified model picker
     _allowedDomains = Array.isArray(settings.allowed_email_domains) ? settings.allowed_email_domains : [];
     renderDomainTags();
     loadEmailSettings(settings);
@@ -1234,27 +1118,8 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     if (dlEl) dlEl.value = settings.daily_limit ?? 50;
     const mfEl = document.getElementById('appMaxFileMb');
     if (mfEl) mfEl.value = settings.max_file_mb ?? 10;
-    const ollamaOn = settings.ollama_enabled === true;
-    _savedOllamaEnabled = ollamaOn;   // track what's actually persisted in the DB
-    const togEl = document.getElementById('ollamaEnabled');
-    if (togEl) { togEl.checked = ollamaOn; onOllamaToggle(ollamaOn); }
-    const ouEl = document.getElementById('appOllamaUrl');
-    if (ouEl) ouEl.value = settings.ollama_base_url ?? 'http://ollama:11434';
-    const omEl = document.getElementById('appOllamaModels');
-    if (omEl) {
-      omEl.value = settings.ollama_model_ids ?? '';
-      // Use saved value only to know what's currently active in the DB
-      const saved = (settings.ollama_model_ids ?? '').split(',').map(s => s.trim()).filter(Boolean);
-      _savedOllamaModel  = saved[0] ?? '';
-      _activeOllamaModel = saved[0] ?? '';
-    }
     _settingsInitializing = false;
-    // Checklist runs here so _ollamaEnabled + _savedOllamaModel are already set
     loadConfigChecklist();
-    if (settings.ollama_enabled) {
-      // refreshOllamaServiceStatus will auto-detect models via _applyServiceBadge if running
-      refreshOllamaServiceStatus();
-    }
   }
 
   function renderDomainTags() {
@@ -1341,12 +1206,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     const domainsSet = Array.isArray(s.allowed_email_domains) && s.allowed_email_domains.length > 0;
     const fixModelFail = s.fixed_model_enabled && !s.fixed_model_id;
     const anyProviderSet = pk.some(p => p.key_set);
-    _anyProviderSet = anyProviderSet;  // keep module-level copy for reactive updates
-    const ollamaSvcDown  = s.ollama_enabled && (_ollamaServiceStatusValue === 'stopped' || _ollamaServiceStatusValue === 'docker_unavailable');
-    const ollamaNoModel  = s.ollama_enabled && (!_savedOllamaModel || !_detectedOllamaModels.includes(_savedOllamaModel));
-    // ollamaReady: service running AND a valid model is selected — satisfies the "at least one LLM source" requirement
-    const ollamaReady = s.ollama_enabled && _ollamaServiceStatusValue === 'running'
-      && !!_savedOllamaModel && _detectedOllamaModels.includes(_savedOllamaModel);
 
     let sections = '';
 
@@ -1387,28 +1246,11 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
         : warn('Regions', 'None configured'),
     ].join(''));
 
-    // ── Ollama ───────────────────────────────────────────────────────────────
-    if (s.ollama_enabled) {
-      const svcLabel = _ollamaServiceStatusValue === 'running' ? '● Running'
-                     : _ollamaServiceStatusValue === 'unknown'  ? '? Unknown'
-                     : '○ Not running';
-      sections += group('Ollama', 'sp-ollama', [
-        ollamaSvcDown ? warn('Service',      svcLabel)          : set('Service',      svcLabel),
-        ollamaNoModel ? warn('Active Model', 'None selected')   : set('Active Model', _savedOllamaModel),
-      ].join(''));
-    } else {
-      sections += group('Ollama', 'sp-ollama', [
-        info('Ollama', 'Disabled'),
-      ].join(''));
-    }
-
     // ── LLM Keys ─────────────────────────────────────────────────────────────
-    if (!s.ollama_enabled) {
-      sections += group('LLM Keys', 'sp-llmkeys', [
-        anyProviderSet ? set('At least one key set') : warn('No provider keys set'),
-        ...pk.filter(p => p.key_set).map(p => set(p.name, p.key_preview)),
-      ].join(''));
-    }
+    sections += group('LLM Keys', 'sp-llmkeys', [
+      anyProviderSet ? set('At least one key set') : warn('No provider keys set'),
+      ...pk.filter(p => p.key_set).map(p => set(p.name, p.key_preview)),
+    ].join(''));
 
     // Count unset / misconfigured items across all sections
     const noRegions = tenants.length === 0;
@@ -1461,14 +1303,14 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     _setNavDot('sp-security',   !s.admin_password_set || !s.jwt_secret_set || !s.encryption_key_set || !s.litellm_key_set);
     _setNavDot('sp-email',      openMode && (!s.smtp_configured || !domainsSet));
     _setNavDot('sp-psregions',  noRegions);
-    _setNavDot('sp-llmkeys',    !ollamaReady && !anyProviderSet);
+    _setNavDot('sp-llmkeys',    !anyProviderSet);
     _setNavDot('sp-application', false);  // application has no required fields
     // Top-level Settings nav dot — derived from all pane error state (kept in sync by _refreshGlobalSettingsDot)
     _refreshGlobalSettingsDot();
-    applyFieldHighlights(s, anyProviderSet, ollamaReady, openMode, domainsSet, fixModelFail, ollamaNoModel, noRegions);
+    applyFieldHighlights(s, anyProviderSet, openMode, domainsSet, fixModelFail, noRegions);
   }
 
-  function applyFieldHighlights(s, anyProviderSet, ollamaReady, openMode, domainsSet, fixModelFail, ollamaNoModel, noRegions) {
+  function applyFieldHighlights(s, anyProviderSet, openMode, domainsSet, fixModelFail, noRegions) {
     const toggle = (id, unset) => {
       const el = document.getElementById(id);
       if (el) el.classList.toggle('field-unset', !!unset);
@@ -1483,31 +1325,27 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     toggle('row-email-domains', openMode && !domainsSet);
     // PS Regions pane — highlight the table when no regions configured
     toggle('tenantTable',       noRegions);
-    // LLM Keys pane — highlight only when no provider key is set AND Ollama isn't ready with a model
-    toggle('providerKeyTable',  !ollamaReady && !anyProviderSet);
+    // LLM Keys pane — highlight when no provider key is set
+    toggle('providerKeyTable',  !anyProviderSet);
     // Application pane — fixed model row
     toggle('fixModelRow', fixModelFail);
-    // Ollama pane — active model row
-    toggle('row-ollama-model', ollamaNoModel);
   }
 
   // ── Settings dirty / nav-dot tracking ────────────────────────────────────
   const _paneErrors = new Set();   // panes with validation errors (red)
   const _paneDirty  = new Set();   // panes with unsaved changes (amber)
   let   _settingsInitializing = false;  // suppress dirty marking during loadSettings
-  let   _anyProviderSet = false;        // updated by loadConfigChecklist; used for reactive toggle updates
 
   function _refreshGlobalSettingsDot() {
-    // The global Settings nav dot is red if any pane has an error OR if the Ollama dot is visible
-    const ollamaDot = document.getElementById('ollamaNavDot');
-    const hasAnyIssue = _paneErrors.size > 0 || (ollamaDot && ollamaDot.style.display !== 'none');
+    // The global Settings nav dot is red if any pane has an error
+    const hasAnyIssue = _paneErrors.size > 0;
     const dot = document.getElementById('dot-nav-settings');
     if (dot) dot.style.display = hasAnyIssue ? 'inline' : 'none';
   }
 
   function _refreshNavDot(pane) {
     const dot = document.getElementById(`dot-${pane}`);
-    if (!dot || pane === 'sp-ollama') return; // Ollama handled by updateOllamaNavStatus
+    if (!dot) return;
     const hasError = _paneErrors.has(pane);
     const hasDirty = _paneDirty.has(pane);
     if (hasError) {
@@ -1871,56 +1709,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     }
   }
 
-  function onOllamaToggle(enabled) {
-    _ollamaEnabled = enabled;
-    document.getElementById('ollamaDetails').style.display = enabled ? 'block' : 'none';
-    _updateModelRowVisibility();
-    if (enabled) refreshOllamaServiceStatus();
-    updateOllamaNavStatus();
-    updateOllamaActionButtons();
-    _updateLlmKeysNavVisibility();
-    // Fix Model remains available regardless of Ollama state
-  }
-
-  async function testOllamaConnection() {
-    const btn    = document.getElementById('ollamaTestBtn');
-    const result = document.getElementById('ollamaTestResult');
-    const url    = document.getElementById('appOllamaUrl').value.trim()
-                   || 'http://ollama:11434';
-
-    btn.disabled = true;
-    btn.textContent = 'Testing…';
-    result.style.display = 'none';
-
-    try {
-      const res = await api('/admin/ollama/test', {
-        method: 'POST',
-        body: JSON.stringify({ url }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        result.style.cssText = 'display:block;font-size:12px;margin-top:2px;color:var(--red)';
-        result.textContent = '✗ ' + (data.detail || 'Connection failed');
-      } else if (data.models.length === 0) {
-        result.style.cssText = 'display:block;font-size:12px;margin-top:2px;color:var(--yellow)';
-        result.textContent = '⚠ Connected — no models pulled yet. Run: ollama pull <model>';
-      } else {
-        result.style.cssText = 'display:block;font-size:12px;margin-top:2px;color:var(--green)';
-        result.textContent = `✓ Connected — ${data.models.length} model${data.models.length !== 1 ? 's' : ''} found: ${data.models.join(', ')}`;
-        document.getElementById('appOllamaModels').value = data.models.join(', ');
-        _detectedOllamaModels = data.models;
-        if (!_activeOllamaModel && data.models.length) _activeOllamaModel = data.models[0];
-        renderOllamaModelPicker();
-      }
-    } catch (e) {
-      result.style.cssText = 'display:block;font-size:12px;margin-top:2px;color:var(--red)';
-      result.textContent = '✗ Request failed — check browser console';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Test Connection';
-    }
-  }
-
   async function saveAppSettings() {
     const errEl = document.getElementById('appSettingsErr');
     const okEl  = document.getElementById('appSettingsOk');
@@ -1951,88 +1739,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
       okEl.style.display = 'inline';
       btn.textContent = 'Saved ✓';
       setTimeout(() => { btn.textContent = 'Save'; okEl.style.display = 'none'; }, 2500);
-    } else {
-      const d = await res.json().catch(() => ({}));
-      errEl.textContent = '✗ ' + (d.detail || 'Failed to save');
-      errEl.style.display = 'block';
-      btn.textContent = 'Save';
-    }
-  }
-
-  async function saveOllamaSettings() {
-    const errEl = document.getElementById('appSettingsOllamaErr');
-    const okEl  = document.getElementById('appSettingsOllamaOk');
-    const btn   = document.getElementById('appSettingsOllamaSaveBtn');
-
-    errEl.style.display = 'none';
-    okEl.style.display  = 'none';
-
-    const ollamaOn  = document.getElementById('ollamaEnabled').checked;
-    const ollamaUrl = document.getElementById('appOllamaUrl').value.trim();
-    const ollamaIds = document.getElementById('appOllamaModels').value.trim();
-
-    if (ollamaOn && ollamaUrl && !ollamaUrl.startsWith('http://') && !ollamaUrl.startsWith('https://')) {
-      errEl.textContent = 'Ollama URL must start with http:// or https://'; errEl.style.display = 'block'; return;
-    }
-
-    btn.disabled = true; btn.textContent = 'Saving…';
-    const res = await api('/admin/application-settings', {
-      method: 'PATCH',
-      body: JSON.stringify({ ollama_enabled: ollamaOn, ollama_base_url: ollamaUrl, ollama_model_ids: ollamaIds }),
-    });
-    btn.disabled = false;
-    if (res.ok) {
-      clearPaneDirty('sp-ollama');
-      const data = await res.json().catch(() => ({}));
-      // Promote the selected model to "saved" so chips turn green
-      _savedOllamaModel = _activeOllamaModel;
-      _savedOllamaEnabled = ollamaOn;   // unlock Detect / Pull buttons now that service is starting
-      updateOllamaActionButtons();
-      renderOllamaModelPicker();
-      const svcBadge = document.getElementById('ollamaServiceBadge');
-      const svcBtn   = document.getElementById('ollamaServiceBtn');
-      if (!ollamaOn) {
-        // Call stop endpoint and show real success/failure
-        btn.textContent = 'Saved ✓';
-        if (svcBadge) { svcBadge.textContent = '⏳ Stopping…'; svcBadge.style.background = 'rgba(243,156,18,0.15)'; svcBadge.style.color = '#f39c12'; }
-        if (svcBtn) svcBtn.disabled = true;
-        const stopRes = await api('/admin/ollama/service/stop', { method: 'POST' }).catch(() => null);
-        if (stopRes && stopRes.ok) {
-          _ollamaServiceStatusValue = 'stopped';
-          if (svcBadge && svcBtn) _applyServiceBadge(svcBadge, svcBtn, 'stopped');
-          okEl.textContent = '✓ Ollama stopped successfully';
-          okEl.style.display = 'inline';
-        } else {
-          const stopErr = stopRes ? await stopRes.json().catch(() => ({})) : {};
-          if (svcBadge && svcBtn) _setServiceUnavailable(svcBadge, svcBtn);
-          errEl.textContent = '✗ Saved but could not stop Ollama: ' + (stopErr.detail || 'Docker unavailable');
-          errEl.style.display = 'block';
-        }
-        setTimeout(() => { btn.textContent = 'Save'; okEl.style.display = 'none'; }, 3000);
-      } else if (ollamaOn) {
-        // Auto-start the Ollama container when enabling
-        btn.textContent = 'Saved ✓';
-        if (svcBadge) { svcBadge.textContent = '⏳ Starting…'; svcBadge.style.background = 'rgba(243,156,18,0.15)'; svcBadge.style.color = '#f39c12'; }
-        if (svcBtn) svcBtn.disabled = true;
-        const startRes = await api('/admin/ollama/service/start', { method: 'POST' }).catch(() => null);
-        if (startRes && startRes.ok) {
-          // Route through _applyServiceBadge so row visibility + model detect fire automatically
-          if (svcBadge && svcBtn) _applyServiceBadge(svcBadge, svcBtn, 'running');
-          okEl.textContent = '✓ Ollama started successfully';
-          okEl.style.display = 'inline';
-        } else {
-          const startErr = startRes ? await startRes.json().catch(() => ({})) : {};
-          if (svcBadge && svcBtn) _setServiceUnavailable(svcBadge, svcBtn);
-          errEl.textContent = '✗ Saved but could not start Ollama: ' + (startErr.detail || 'Docker unavailable');
-          errEl.style.display = 'block';
-        }
-        setTimeout(() => { btn.textContent = 'Save'; okEl.style.display = 'none'; }, 3000);
-      } else {
-        okEl.textContent = 'Saved';
-        okEl.style.display = 'inline';
-        btn.textContent = 'Saved ✓';
-        setTimeout(() => { btn.textContent = 'Save'; okEl.style.display = 'none'; }, 2500);
-      }
     } else {
       const d = await res.json().catch(() => ({}));
       errEl.textContent = '✗ ' + (d.detail || 'Failed to save');
@@ -3467,31 +3173,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
       // "Exit Anyway" — fall through
     }
 
-    // Soft gate: warn if Ollama is enabled but misconfigured
-    if (_ollamaEnabled) {
-      const svcDown = _ollamaServiceStatusValue === 'stopped' || _ollamaServiceStatusValue === 'docker_unavailable';
-      const noModel = !_savedOllamaModel || !_detectedOllamaModels.includes(_savedOllamaModel);
-      if (svcDown || noModel) {
-        const msg = svcDown && noModel
-          ? 'The Ollama service is not running and no model is selected.'
-          : svcDown
-          ? 'The Ollama service is not running.'
-          : 'No Ollama model is selected.';
-        const go = await showConfirm(
-          'Ollama not ready',
-          `${msg} Users won't be able to chat until this is resolved. Go to Ollama settings?`,
-          'Go to Ollama',
-          'Exit Anyway'
-        );
-        if (go) {
-          document.getElementById('nav-settings')?.click();
-          switchSettingsPane('sp-ollama');
-          return false;
-        }
-        // "Exit Anyway" — fall through to normal exit logic below
-      }
-    }
-
     if (_appSettings.user_mgmt_enabled !== false) {
       // User management mode — check if any users exist before leaving
       let userCount = allUsers.length;
@@ -3971,828 +3652,7 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
     showAdminOverlay();
   })();
 
-  // ── Ollama service control ────────────────────────────────────────────────
-  let _ollamaServiceStatusValue = 'unknown';
-  let _ollamaEnabled = false;
-  let _savedOllamaEnabled = false;  // true only after settings have been saved with ollama_enabled=true
   let _securityUnsetItems = [];     // populated by loadConfigChecklist; used for soft exit warning
-  let _detectedOllamaModels = [];
-  let _activeOllamaModel  = '';   // currently selected in the picker (may be unsaved)
-  let _savedOllamaModel   = '';   // last-saved value (live in the DB / active in chat)
-
-  function updateOllamaNavStatus() {
-    const dot = document.getElementById('ollamaNavDot');
-    if (!dot) return;
-    if (!_ollamaEnabled) { dot.style.display = 'none'; return; }
-    const noModel = !_savedOllamaModel || !_detectedOllamaModels.includes(_savedOllamaModel);
-    const svcDown = _ollamaServiceStatusValue === 'stopped' || _ollamaServiceStatusValue === 'docker_unavailable';
-    if (noModel || svcDown) {
-      dot.style.display = 'inline';
-      dot.style.color = 'var(--red,#e74c3c)';
-      dot.title = noModel ? 'No model selected' : 'Service not running';
-    } else {
-      dot.style.display = 'none';
-      dot.title = '';
-    }
-    _refreshGlobalSettingsDot();
-  }
-
-  function updateOllamaActionButtons() {
-    // Disable Detect / Pull controls when the toggle is on but the service isn't running yet —
-    // either because settings haven't been saved (service not started) or it's genuinely stopped.
-    const serviceRunning = _ollamaServiceStatusValue === 'running';
-    const locked = _ollamaEnabled && !_savedOllamaEnabled && !serviceRunning;
-    const warn        = document.getElementById('ollamaUnsavedWarning');
-    const detectBtn   = document.getElementById('ollamaDetectBtn');
-    const pullInput   = document.getElementById('ollamaPullInput');
-    const pullBtn     = document.getElementById('ollamaPullBtn');
-    const browseBtn   = document.getElementById('ollamaBrowseBtn');
-    if (warn)      warn.style.display      = locked ? 'block' : 'none';
-    if (detectBtn) detectBtn.disabled      = locked;
-    if (pullInput) pullInput.disabled      = locked;
-    if (pullBtn)   pullBtn.disabled        = locked;
-    if (browseBtn) browseBtn.disabled      = locked;
-  }
-
-  async function refreshOllamaServiceStatus() {
-    const badge = document.getElementById('ollamaServiceBadge');
-    const btn   = document.getElementById('ollamaServiceBtn');
-    if (!badge || !btn) return;
-    badge.textContent = 'Checking…';
-    badge.style.background = 'rgba(150,150,150,0.15)';
-    badge.style.color = 'var(--muted)';
-    btn.disabled = true; btn.textContent = '…';
-    try {
-      const res = await api('/admin/ollama/service');
-      if (!res.ok) { _setServiceUnavailable(badge, btn); return; }
-      const data = await res.json();
-      _ollamaServiceStatusValue = data.status;
-      _applyServiceBadge(badge, btn, data.status);
-    } catch (e) {
-      _setServiceUnavailable(badge, btn);
-    }
-  }
-
-  function _setServiceUnavailable(badge, btn) {
-    _ollamaServiceStatusValue = 'docker_unavailable';
-    badge.textContent = 'Docker N/A';
-    badge.style.background = 'rgba(150,150,150,0.15)';
-    badge.style.color = 'var(--muted)';
-    btn.textContent = '—'; btn.disabled = true;
-    btn.style.background = ''; btn.style.color = '';
-    _updateModelRowVisibility();
-    _updateLlmKeysNavVisibility();
-    updateOllamaNavStatus();
-    updateOllamaActionButtons();
-  }
-
-  function _updateModelRowVisibility() {
-    const running = _ollamaServiceStatusValue === 'running';
-    const modelRow = document.getElementById('row-ollama-model');
-    const pullRow  = document.getElementById('row-ollama-pull');
-    if (modelRow) modelRow.style.display = running ? '' : 'none';
-    if (pullRow)  pullRow.style.display  = running ? '' : 'none';
-  }
-
-  function _updateLlmKeysNavVisibility() {
-    // LLM Keys and Ollama can both be active at the same time — always show the nav item.
-    const llmNavBtn = document.querySelector('.settings-nav-item[data-pane="sp-llmkeys"]');
-    if (llmNavBtn) llmNavBtn.style.display = '';
-    // Nav dot: only warn if neither Ollama (running+model) nor any LLM key satisfies the requirement.
-    if (!_settingsInitializing) {
-      const ollamaReady = _ollamaServiceStatusValue === 'running'
-        && !!_savedOllamaModel && _detectedOllamaModels.includes(_savedOllamaModel);
-      _setNavDot('sp-llmkeys', !ollamaReady && !_anyProviderSet);
-    }
-  }
-
-  function _applyServiceBadge(badge, btn, status) {
-    _ollamaServiceStatusValue = status;   // keep state in sync before any downstream calls
-    const running = status === 'running';
-    const notFound = status === 'not_found';
-    const unavail  = status === 'docker_unavailable' || status === 'error';
-    if (unavail) { _setServiceUnavailable(badge, btn); return; }
-    if (running) {
-      badge.textContent = '● Running';
-      badge.style.background = 'rgba(46,204,113,0.15)';
-      badge.style.color = 'var(--green)';
-      btn.textContent = 'Stop'; btn.disabled = false;
-      btn.className = 'btn btn-sm';
-    } else {
-      badge.textContent = notFound ? '○ Not created' : '○ Stopped';
-      badge.style.background = 'rgba(241,196,15,0.1)';
-      badge.style.color = 'var(--yellow,#f1c40f)';
-      btn.textContent = 'Start'; btn.disabled = false;
-      btn.className = 'btn btn-sm btn-primary';
-    }
-    _updateModelRowVisibility();
-    _updateLlmKeysNavVisibility();
-    updateOllamaNavStatus();
-    updateOllamaActionButtons();
-    // Auto-detect models whenever the service is confirmed running
-    if (running) detectOllamaModels();
-  }
-
-  async function toggleOllamaService() {
-    const btn = document.getElementById('ollamaServiceBtn');
-    if (!btn || btn.disabled) return;
-    const isRunning = _ollamaServiceStatusValue === 'running';
-    btn.disabled = true;
-    btn.textContent = isRunning ? 'Stopping…' : 'Starting…';
-    const endpoint = isRunning ? '/admin/ollama/service/stop' : '/admin/ollama/service/start';
-    const res = await api(endpoint, { method: 'POST' }).catch(() => null);
-    if (res && !res.ok) {
-      const d = await res.json().catch(() => ({}));
-      alert(d.detail || 'Service action failed');
-    }
-    // Give it a moment to change state; refreshOllamaServiceStatus will auto-detect models if running
-    await new Promise(r => setTimeout(r, isRunning ? 1500 : 2500));
-    await refreshOllamaServiceStatus();
-  }
-
-  // ── Ollama model picker ───────────────────────────────────────────────────
-  async function detectOllamaModels() {
-    const picker = document.getElementById('ollamaModelPicker');
-    const status = document.getElementById('ollamaDetectStatus');
-    if (!picker) return;
-    if (status) { status.style.display = 'inline'; status.textContent = 'Detecting…'; }
-    picker.innerHTML = '<span style="font-size:12px;color:var(--muted)">Detecting…</span>';
-    const url = (document.getElementById('appOllamaUrl')?.value || '').trim() || 'http://ollama:11434';
-    const res = await api('/admin/ollama/test', { method: 'POST', body: JSON.stringify({ url }) }).catch(() => null);
-    if (!res || !res.ok) {
-      picker.innerHTML = '<span style="font-size:12px;color:var(--red)">⚠ Could not connect to Ollama — check the URL and ensure the service is running.</span>';
-      if (status) status.style.display = 'none';
-      _detectedOllamaModels = [];
-      renderOllamaModelPicker();
-      loadConfigChecklist();
-      return;
-    }
-    const data = await res.json();
-    _detectedOllamaModels = data.models || [];
-    const hiddenInput = document.getElementById('appOllamaModels');
-    // Keep the saved model as active; fall back to first detected if none saved
-    _activeOllamaModel = _savedOllamaModel || _detectedOllamaModels[0] || '';
-    if (hiddenInput) hiddenInput.value = [_activeOllamaModel, ..._detectedOllamaModels.filter(m => m !== _activeOllamaModel)].join(', ');
-    renderOllamaModelPicker();
-    if (status) { status.textContent = `${_detectedOllamaModels.length} model${_detectedOllamaModels.length !== 1 ? 's' : ''} found`; }
-    // Refresh checklist so Ollama rows + exit-admin gate reflect live state
-    loadConfigChecklist();
-  }
-
-  function renderOllamaModelPicker() {
-    const picker    = document.getElementById('ollamaModelPicker');
-    const noModelEl = document.getElementById('ollamaNoModelWarning');
-    if (!picker) return;
-    if (_detectedOllamaModels.length === 0) {
-      picker.innerHTML = '<span style="font-size:12px;color:var(--muted)">No models installed. Use Pull below to download one.</span>';
-      if (noModelEl) noModelEl.style.display = 'block';
-      return;
-    }
-    picker.innerHTML = _detectedOllamaModels.map(m => {
-      const isActive = m === _savedOllamaModel;
-      // Green = currently active; default = not selected
-      let bg, border, color, prefix;
-      if (isActive) {
-        bg = 'rgba(46,204,113,0.15)'; border = 'rgba(46,204,113,0.5)'; color = 'var(--green,#2ecc71)'; prefix = '✓ ';
-      } else {
-        bg = 'var(--surface2)'; border = 'var(--border)'; color = 'var(--text)'; prefix = '';
-      }
-      return `<span onclick="selectOllamaModel('${m.replace(/'/g, "\\'")}')"
-        style="display:inline-flex;align-items:center;gap:5px;padding:5px 13px;border-radius:20px;cursor:pointer;font-size:12px;user-select:none;
-        background:${bg};border:1px solid ${border};color:${color}">
-        ${prefix}<span style="font-family:monospace">${m}</span>
-      </span>`;
-    }).join('');
-    const noneSelected = !_savedOllamaModel || !_detectedOllamaModels.includes(_savedOllamaModel);
-    if (noModelEl) noModelEl.style.display = noneSelected ? 'block' : 'none';
-    updateOllamaNavStatus();
-  }
-
-  async function selectOllamaModel(modelId) {
-    if (modelId === _savedOllamaModel) return;   // already active, nothing to do
-    _activeOllamaModel = modelId;
-    const others  = _detectedOllamaModels.filter(m => m !== modelId);
-    const ordered = [modelId, ...others];
-    const hiddenInput = document.getElementById('appOllamaModels');
-    if (hiddenInput) hiddenInput.value = ordered.join(', ');
-
-    // Auto-save — model switching is per-request, no LiteLLM restart needed
-    const status = document.getElementById('ollamaDetectStatus');
-    if (status) { status.textContent = 'Saving…'; status.style.display = 'inline'; }
-    try {
-      const res = await api('/admin/application-settings', {
-        method: 'PATCH',
-        body: JSON.stringify({ ollama_model_ids: ordered.join(', ') }),
-      });
-      if (res.ok) {
-        _savedOllamaModel = modelId;
-        if (status) { status.textContent = '✓ Active'; setTimeout(() => { status.style.display = 'none'; }, 2000); }
-      } else {
-        if (status) { status.textContent = '✗ Save failed'; setTimeout(() => { status.style.display = 'none'; }, 3000); }
-      }
-    } catch {
-      if (status) { status.textContent = '✗ Save failed'; setTimeout(() => { status.style.display = 'none'; }, 3000); }
-    }
-    renderOllamaModelPicker();
-    loadConfigChecklist();
-  }
-
-  // ── Ollama model pull ─────────────────────────────────────────────────────
-  let _currentPullModel = null;
-
-  async function cancelModelPull() {
-    if (!_currentPullModel) return;
-    const cancelBtn = document.getElementById('ollamaCancelBtn');
-    cancelBtn.disabled = true; cancelBtn.textContent = 'Cancelling…';
-    try {
-      await fetch('/admin/ollama/pull', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
-        body: JSON.stringify({ model: _currentPullModel }),
-      });
-    } catch (_) {}
-    // Stream handler emits status:cancelled → reader loop resets the UI
-  }
-
-  async function startModelPull() {
-    const input     = document.getElementById('ollamaPullInput');
-    const btn       = document.getElementById('ollamaPullBtn');
-    const cancelBtn = document.getElementById('ollamaCancelBtn');
-    const prog      = document.getElementById('ollamaPullProgress');
-    const bar       = document.getElementById('ollamaPullBar');
-    const txt       = document.getElementById('ollamaPullText');
-    const model     = input?.value.trim();
-    if (!model) { input?.focus(); return; }
-
-    _currentPullModel = model;
-    btn.disabled = true; btn.textContent = 'Pulling…';
-    cancelBtn.style.display = 'inline-flex'; cancelBtn.disabled = false; cancelBtn.textContent = 'Cancel';
-    prog.style.display = 'block';
-    bar.style.width = '0%'; bar.style.background = 'var(--blue,#63b3ed)';
-    txt.textContent = 'Connecting to Ollama…';
-    txt.style.color = 'var(--muted)';
-
-    try {
-      const resp = await fetch('/admin/ollama/pull', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
-        body: JSON.stringify({ model }),
-      });
-      if (!resp.ok) {
-        const d = await resp.json().catch(() => ({}));
-        txt.textContent = '⚠ ' + (d.detail || 'Failed to start pull');
-        txt.style.color = 'var(--red)';
-        return;
-      }
-      const reader = resp.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '';
-      let finalStatus = 'done'; // 'done' | 'error' | 'cancelled'
-      outer: while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (!raw) continue;
-          try {
-            const evt = JSON.parse(raw);
-            if (evt.status === 'error') {
-              txt.textContent = '⚠ ' + (evt.error || 'Pull failed');
-              txt.style.color = 'var(--red)';
-              finalStatus = 'error';
-              break outer;
-            }
-            if (evt.status === 'cancelled') {
-              finalStatus = 'cancelled';
-              break outer;
-            }
-            let pct = 0;
-            if (evt.total && evt.completed) {
-              pct = Math.min(99, Math.round((evt.completed / evt.total) * 100));
-            }
-            if (evt.status === 'success' || evt.status === 'done') pct = 100;
-            bar.style.width = `${pct}%`;
-            let label = evt.status || '';
-            if (evt.total && evt.completed) {
-              const mbDone = (evt.completed / 1048576).toFixed(0);
-              const mbTotal = (evt.total / 1048576).toFixed(0);
-              label += ` — ${mbDone} / ${mbTotal} MB (${pct}%)`;
-            }
-            txt.textContent = label;
-            txt.style.color = pct === 100 ? 'var(--green)' : 'var(--muted)';
-          } catch (_) { /* ignore parse errors */ }
-        }
-      }
-      if (finalStatus === 'done') {
-        txt.textContent = '✓ Pull complete!';
-        txt.style.color = 'var(--green)';
-        bar.style.width = '100%';
-        input.value = '';
-        await detectOllamaModels();
-        if (document.getElementById('modelBrowserBackdrop')?.classList.contains('open')) renderModelBrowser();
-      } else if (finalStatus === 'cancelled') {
-        bar.style.width = '0%';
-        bar.style.background = 'var(--blue,#63b3ed)';
-        txt.style.color = 'var(--muted)';
-        txt.textContent = '✕ Cancelled — pull again to resume from checkpoint';
-      }
-    } catch (e) {
-      txt.textContent = '⚠ ' + e.message;
-      txt.style.color = 'var(--red)';
-    } finally {
-      _currentPullModel = null;
-      btn.disabled = false; btn.textContent = 'Pull';
-      cancelBtn.style.display = 'none'; cancelBtn.disabled = false; cancelBtn.textContent = 'Cancel';
-    }
-  }
-
-  // ── Ollama Model Browser ──────────────────────────────────────────────────
-  const OLLAMA_LIBRARY = [
-    {slug:"llama3.1",name:"Llama 3.1",desc:"State-of-the-art model from Meta in 8B, 70B and 405B sizes",pulls:"115M",caps:["tools"],sizes:["8b","70b","405b"],latest:"8b"},
-    {slug:"deepseek-r1",name:"DeepSeek-R1",desc:"Open reasoning models with performance approaching O3 and Gemini 2.5 Pro",pulls:"86.2M",caps:["tools","thinking"],sizes:["1.5b","7b","8b","14b","32b","70b","671b"],latest:"7b"},
-    {slug:"nomic-embed-text",name:"Nomic Embed Text",desc:"High-performing open embedding with large token context window",pulls:"71.5M",caps:["embedding"],sizes:[]},
-    {slug:"llama3.2",name:"Llama 3.2",desc:"Meta's compact models with 1B and 3B parameters",pulls:"70.4M",caps:["tools"],sizes:["1b","3b"],latest:"3b"},
-    {slug:"gemma3",name:"Gemma 3",desc:"Most capable model running on single GPU with multiple sizes",pulls:"37M",caps:["vision"],sizes:["270m","1b","4b","12b","27b"],latest:"4b"},
-    {slug:"qwen2.5",name:"Qwen 2.5",desc:"Models trained on up to 18 trillion tokens with 128K context support",pulls:"31.1M",caps:["tools"],sizes:["0.5b","1.5b","3b","7b","14b","32b","72b"],latest:"7b"},
-    {slug:"qwen3",name:"Qwen 3",desc:"Latest generation with dense and mixture-of-experts models",pulls:"29.6M",caps:["tools","thinking"],sizes:["0.6b","1.7b","4b","8b","14b","30b","32b","235b"],latest:"4b"},
-    {slug:"mistral",name:"Mistral",desc:"7B model from Mistral AI, version 0.3",pulls:"29.5M",caps:["tools"],sizes:["7b"]},
-    {slug:"llama3",name:"Llama 3",desc:"Most capable openly available LLM to date from Meta",pulls:"24M",caps:[],sizes:["8b","70b"],latest:"8b"},
-    {slug:"gemma2",name:"Gemma 2",desc:"High-performing efficient model in 2B, 9B, and 27B sizes",pulls:"23.9M",caps:[],sizes:["2b","9b","27b"],latest:"9b"},
-    {slug:"phi3",name:"Phi-3",desc:"Lightweight state-of-the-art open models by Microsoft",pulls:"17.6M",caps:[],sizes:["3.8b","14b"],latest:"3.8b"},
-    {slug:"qwen2.5-coder",name:"Qwen 2.5 Coder",desc:"Code-specific models with improved generation and reasoning",pulls:"15.9M",caps:["tools"],sizes:["0.5b","1.5b","3b","7b","14b","32b"],latest:"7b"},
-    {slug:"llava",name:"LLaVA",desc:"End-to-end multimodal model combining vision and language",pulls:"14.1M",caps:["vision"],sizes:["7b","13b","34b"],latest:"7b"},
-    {slug:"mxbai-embed-large",name:"MXBai Embed Large",desc:"State-of-the-art large embedding model from mixedbread.ai",pulls:"10.9M",caps:["embedding"],sizes:["335m"]},
-    {slug:"gemma4",name:"Gemma 4",desc:"Frontier-level models for reasoning, agentic workflows, and multimodal",pulls:"10.4M",caps:["vision","tools","thinking"],sizes:["e2b","e4b","26b","31b"],latest:"e4b"},
-    {slug:"phi4",name:"Phi-4",desc:"14B state-of-the-art open model from Microsoft",pulls:"7.5M",caps:[],sizes:["14b"]},
-    {slug:"gemma",name:"Gemma",desc:"Lightweight state-of-the-art open models by Google DeepMind",pulls:"7.1M",caps:[],sizes:["2b","7b"],latest:"7b"},
-    {slug:"llama2",name:"Llama 2",desc:"Foundation models ranging from 7B to 70B parameters",pulls:"6.9M",caps:[],sizes:["7b","13b","70b"],latest:"7b"},
-    {slug:"qwen",name:"Qwen",desc:"Qwen 1.5 series spanning 0.5B to 110B parameters by Alibaba",pulls:"6.7M",caps:[],sizes:["0.5b","1.8b","4b","7b","14b","32b","72b","110b"],latest:"7b"},
-    {slug:"qwen2",name:"Qwen 2",desc:"New series of large language models from Alibaba",pulls:"5.9M",caps:["tools"],sizes:["0.5b","1.5b","7b","72b"],latest:"7b"},
-    {slug:"qwen3-coder",name:"Qwen 3 Coder",desc:"Performant long context models for agentic and coding tasks",pulls:"5.6M",caps:["tools"],sizes:["30b","480b"],latest:"30b"},
-    {slug:"codellama",name:"Code Llama",desc:"Model using text prompts to generate and discuss code",pulls:"5.6M",caps:[],sizes:["7b","13b","34b","70b"],latest:"7b"},
-    {slug:"tinyllama",name:"TinyLlama",desc:"Compact 1.1B Llama model trained on 3 trillion tokens",pulls:"4.9M",caps:[],sizes:["1.1b"]},
-    {slug:"mistral-nemo",name:"Mistral Nemo",desc:"12B model by Mistral and NVIDIA with 128k context",pulls:"4.6M",caps:["tools"],sizes:["12b"]},
-    {slug:"llama3.2-vision",name:"Llama 3.2 Vision",desc:"Image reasoning models in 11B and 90B sizes",pulls:"4.5M",caps:["vision"],sizes:["11b","90b"],latest:"11b"},
-    {slug:"deepseek-coder",name:"DeepSeek Coder",desc:"Capable coding model trained on two trillion code tokens",pulls:"4.2M",caps:[],sizes:["1.3b","6.7b","33b"],latest:"6.7b"},
-    {slug:"llama3.3",name:"Llama 3.3",desc:"70B model offering similar performance to Llama 3.1 405B",pulls:"3.9M",caps:["tools"],sizes:["70b"]},
-    {slug:"dolphin3",name:"Dolphin 3",desc:"Instruct-tuned 8B model for general purpose local use",pulls:"3.8M",caps:[],sizes:["8b"]},
-    {slug:"deepseek-v3",name:"DeepSeek-V3",desc:"Mixture-of-Experts model with 671B total, 37B activated",pulls:"3.8M",caps:[],sizes:["671b"]},
-    {slug:"smollm2",name:"SmolLM2",desc:"Compact models in 135M, 360M, and 1.7B sizes",pulls:"3.4M",caps:["tools"],sizes:["135m","360m","1.7b"],latest:"1.7b"},
-    {slug:"mistral-small",name:"Mistral Small",desc:"Mistral Small 3 benchmark in small LLM category below 70B",pulls:"3M",caps:["tools"],sizes:["22b","24b"],latest:"22b"},
-    {slug:"codegemma",name:"CodeGemma",desc:"Powerful lightweight models for various coding tasks",pulls:"3M",caps:[],sizes:["2b","7b"],latest:"7b"},
-    {slug:"orca-mini",name:"Orca Mini",desc:"General-purpose model from 3B to 70B for entry-level hardware",pulls:"2.9M",caps:[],sizes:["3b","7b","13b","70b"],latest:"3b"},
-    {slug:"starcoder2",name:"StarCoder2",desc:"Next generation open code LLMs in 3B, 7B and 15B",pulls:"2.8M",caps:[],sizes:["3b","7b","15b"],latest:"7b"},
-    {slug:"mixtral",name:"Mixtral",desc:"Mixture of Experts open models by Mistral",pulls:"2.6M",caps:["tools"],sizes:["8x7b","8x22b"],latest:"8x7b"},
-    {slug:"deepseek-coder-v2",name:"DeepSeek Coder V2",desc:"Mixture-of-Experts code model with GPT4-Turbo comparable performance",pulls:"2.6M",caps:[],sizes:["16b","236b"],latest:"16b"},
-    {slug:"falcon3",name:"Falcon 3",desc:"Efficient models under 10B for science, math, and coding",pulls:"2.6M",caps:[],sizes:["1b","3b","7b","10b"],latest:"7b"},
-    {slug:"llava-llama3",name:"LLaVA Llama 3",desc:"LLaVA fine-tuned from Llama 3 with improved benchmarks",pulls:"2.3M",caps:["vision"],sizes:["8b"]},
-    {slug:"qwq",name:"QwQ",desc:"Reasoning model of the Qwen series",pulls:"2.3M",caps:["tools","thinking"],sizes:["32b"]},
-    {slug:"mistral-small3.2",name:"Mistral Small 3.2",desc:"Updated Mistral Small with improved function and instruction following",pulls:"2.2M",caps:["vision","tools"],sizes:["24b"]},
-    {slug:"cogito",name:"Cogito",desc:"Hybrid reasoning models outperforming same-size counterparts",pulls:"2M",caps:["tools"],sizes:["3b","8b","14b","32b","70b"],latest:"8b"},
-    {slug:"qwen2.5vl",name:"Qwen 2.5 VL",desc:"Flagship vision-language model and leap from Qwen2-VL",pulls:"2M",caps:["vision"],sizes:["3b","7b","32b","72b"],latest:"7b"},
-    {slug:"dolphin-llama3",name:"Dolphin Llama 3",desc:"Dolphin 2.9 based on Llama 3 with instruction and coding skills",pulls:"1.9M",caps:[],sizes:["8b","70b"],latest:"8b"},
-    {slug:"phi4-mini",name:"Phi-4-Mini",desc:"Enhanced multilingual, reasoning, math with function calling",pulls:"1.2M",caps:["tools"],sizes:["3.8b"]},
-    {slug:"moondream",name:"Moondream",desc:"Small vision language model for edge device efficiency",pulls:"1.2M",caps:["vision"],sizes:["1.8b"]},
-    {slug:"mistral-large",name:"Mistral Large",desc:"Flagship with improved code and math, 128k context, multilingual",pulls:"1.2M",caps:["tools"],sizes:["123b"]},
-    {slug:"phi4-reasoning",name:"Phi 4 Reasoning",desc:"14B reasoning models rivaling larger models on complex tasks",pulls:"1.6M",caps:[],sizes:["14b"]},
-    {slug:"magistral",name:"Magistral",desc:"Small efficient reasoning model with 24B parameters",pulls:"1.4M",caps:["tools","thinking"],sizes:["24b"]},
-    {slug:"command-r",name:"Command R",desc:"LLM optimized for conversational interaction and long context",pulls:"1.4M",caps:["tools"],sizes:["35b"]},
-    {slug:"hermes3",name:"Hermes 3",desc:"Latest flagship Hermes by Nous Research",pulls:"1.4M",caps:["tools"],sizes:["3b","8b","70b","405b"],latest:"8b"},
-    {slug:"codestral",name:"Codestral",desc:"Mistral AI's first code model for code generation tasks",pulls:"1.2M",caps:[],sizes:["22b"]},
-    {slug:"yi",name:"Yi",desc:"Yi 1.5: high-performing bilingual language model",pulls:"1.2M",caps:[],sizes:["6b","9b","34b"],latest:"6b"},
-    {slug:"mistral-small3.1",name:"Mistral Small 3.1",desc:"Adds vision understanding and 128k context to Small 3",pulls:"744.6K",caps:["vision","tools"],sizes:["24b"]},
-    {slug:"openchat",name:"OpenChat",desc:"Open-source models surpassing ChatGPT",pulls:"1.1M",caps:[],sizes:["7b"]},
-    {slug:"qwen2-math",name:"Qwen 2 Math",desc:"Specialized math models outperforming open and closed-source",pulls:"1M",caps:[],sizes:["1.5b","7b","72b"],latest:"7b"},
-    {slug:"granite3.1-dense",name:"Granite 3.1 Dense",desc:"IBM 2B and 8B text-only dense LLMs with improvements",pulls:"964K",caps:["tools"],sizes:["2b","8b"],latest:"8b"},
-    {slug:"deepcoder",name:"DeepCoder",desc:"Fully open-source 14B coder at O3-mini level",pulls:"871.3K",caps:[],sizes:["1.5b","14b"],latest:"14b"},
-    {slug:"devstral",name:"Devstral",desc:"Best open source model for coding agents",pulls:"947.1K",caps:["tools"],sizes:["24b"]},
-    {slug:"bge-m3",name:"BGE-M3",desc:"Versatile embedding model for multi-functionality and multi-linguality",pulls:"4.4M",caps:["embedding"],sizes:["567m"]},
-    {slug:"all-minilm",name:"All-MiniLM",desc:"Embedding models on large sentence level datasets",pulls:"3.1M",caps:["embedding"],sizes:["22m","33m"],latest:"33m"},
-    {slug:"snowflake-arctic-embed",name:"Snowflake Arctic Embed",desc:"Suite of text embedding models optimized for performance",pulls:"3.1M",caps:["embedding"],sizes:["22m","33m","110m","137m","335m"],latest:"137m"},
-    {slug:"granite-embedding",name:"Granite Embedding",desc:"IBM 30M and 278M text-only biencoder embeddings",pulls:"329K",caps:["embedding"],sizes:["30m","278m"],latest:"278m"},
-    {slug:"wizardcoder",name:"WizardCoder",desc:"State-of-the-art code generation model",pulls:"983.9K",caps:[],sizes:["33b"]},
-    {slug:"starcoder",name:"StarCoder",desc:"Code generation model trained on 80+ programming languages",pulls:"1.1M",caps:[],sizes:["1b","3b","7b","15b"],latest:"7b"},
-    {slug:"mathstral",name:"Mathstral",desc:"7B designed for math reasoning by Mistral AI",pulls:"522.7K",caps:[],sizes:["7b"]},
-    {slug:"orca2",name:"Orca 2",desc:"Microsoft fine-tuned Llama 2, designed for reasoning",pulls:"890.6K",caps:[],sizes:["7b","13b"],latest:"7b"},
-    {slug:"phi3.5",name:"Phi 3.5",desc:"3.8B lightweight with performance overtaking larger models",pulls:"940.2K",caps:[],sizes:["3.8b"]},
-    {slug:"command-r-plus",name:"Command R Plus",desc:"Powerful scalable LLM for enterprise use cases",pulls:"766.8K",caps:["tools"],sizes:["104b"]},
-    {slug:"llama4",name:"Llama 4",desc:"Meta's latest collection of multimodal models",pulls:"1.7M",caps:["vision","tools"],sizes:["16x17b","128x17b"],latest:"16x17b"},
-    {slug:"smollm",name:"SmolLM",desc:"Small models with 135M, 360M, 1.7B on high-quality dataset",pulls:"1.9M",caps:[],sizes:["135m","360m","1.7b"],latest:"1.7b"},
-    {slug:"nemotron-mini",name:"Nemotron Mini",desc:"NVIDIA small model for roleplay, RAG QA, function calling",pulls:"672.6K",caps:["tools"],sizes:["4b"]},
-    {slug:"deepseek-llm",name:"DeepSeek LLM",desc:"Advanced language model with 2 trillion bilingual tokens",pulls:"1.1M",caps:[],sizes:["7b","67b"],latest:"7b"},
-    {slug:"meditron",name:"Meditron",desc:"Open-source medical LLM adapted from Llama 2",pulls:"698K",caps:[],sizes:["7b","70b"],latest:"7b"},
-    {slug:"falcon",name:"Falcon",desc:"Large language model for summarization and chatbots by TII",pulls:"1.1M",caps:[],sizes:["7b","40b","180b"],latest:"7b"},
-    {slug:"vicuna",name:"Vicuna",desc:"Chat model based on Llama with 2K to 16K context",pulls:"1.1M",caps:[],sizes:["7b","13b","33b"],latest:"7b"},
-    {slug:"openhermes",name:"OpenHermes",desc:"7B fine-tuned on Mistral with open datasets",pulls:"1M",caps:[],sizes:["7b"]},
-    {slug:"stable-code",name:"Stable Code",desc:"3B coding model on par with 7B Code Llama alternatives",pulls:"1M",caps:[],sizes:["3b"]},
-    {slug:"solar",name:"Solar",desc:"Compact powerful 10.7B for single-turn conversation",pulls:"919.8K",caps:[],sizes:["10.7b"]},
-    {slug:"tinydolphin",name:"TinyDolphin",desc:"Experimental 1.1B on Dolphin 2.8 dataset, TinyLlama based",pulls:"690.6K",caps:[],sizes:["1.1b"]},
-    {slug:"bakllava",name:"BakLLaVA",desc:"Mistral 7B augmented with LLaVA architecture",pulls:"850.1K",caps:["vision"],sizes:["7b"]},
-    {slug:"minicpm-v",name:"MiniCPM-V",desc:"Series of multimodal LLMs for vision-language understanding",pulls:"5.2M",caps:["vision"],sizes:["8b"]},
-    {slug:"granite4",name:"Granite 4",desc:"Improved instruction following and tool-calling for enterprise",pulls:"1.2M",caps:["tools"],sizes:["350m","1b","3b"],latest:"3b"},
-    {slug:"exaone3.5",name:"EXAONE 3.5",desc:"Instruction-tuned bilingual English/Korean 2.4B to 32B",pulls:"505.7K",caps:[],sizes:["2.4b","7.8b","32b"],latest:"7.8b"},
-    {slug:"nous-hermes2",name:"Nous Hermes 2",desc:"Powerful models by Nous for scientific discussion and coding",pulls:"1M",caps:[],sizes:["10.7b","34b"],latest:"10.7b"},
-    {slug:"glm4",name:"GLM 4",desc:"Strong multi-lingual model with competitive performance",pulls:"1.1M",caps:[],sizes:["9b"]},
-    {slug:"internlm2",name:"InternLM 2",desc:"InternLM 2.5: 7B for practical scenarios with reasoning",pulls:"936.2K",caps:[],sizes:["1.8b","7b","20b"],latest:"7b"},
-    {slug:"deepseek-v2",name:"DeepSeek-V2",desc:"Strong economical efficient Mixture-of-Experts language model",pulls:"1.1M",caps:[],sizes:["16b","236b"],latest:"16b"},
-    {slug:"olmo2",name:"OLMo 2",desc:"Family of 7B and 13B models trained on up to 5T tokens",pulls:"3.7M",caps:[],sizes:["7b","13b"],latest:"7b"},
-    {slug:"dolphin-mistral",name:"Dolphin Mistral",desc:"Uncensored model excelling at coding",pulls:"1.5M",caps:[],sizes:["7b"]},
-    {slug:"openthinker",name:"OpenThinker",desc:"Fully open-source reasoning models distilled from DeepSeek-R1",pulls:"1.1M",caps:["thinking"],sizes:["7b","32b"],latest:"7b"},
-    {slug:"qwen3-embedding",name:"Qwen 3 Embedding",desc:"Comprehensive text embeddings from Qwen3 foundation models",pulls:"1.9M",caps:["embedding"],sizes:["0.6b","4b","8b"],latest:"4b"},
-    {slug:"qwen3-vl",name:"Qwen 3 VL",desc:"Most powerful vision-language model in Qwen family",pulls:"3.9M",caps:["vision","tools","thinking"],sizes:["2b","4b","8b","30b","32b","235b"],latest:"4b"},
-    {slug:"gemma3n",name:"Gemma 3n",desc:"Designed for efficient execution on everyday devices",pulls:"1.6M",caps:[],sizes:["e2b","e4b"],latest:"e4b"},
-    {slug:"phind-codellama",name:"Phind CodeLlama",desc:"Code generation model based on Code Llama",pulls:"917.6K",caps:[],sizes:["34b"]},
-    {slug:"granite3.2-vision",name:"Granite 3.2 Vision",desc:"Compact vision-language for visual document understanding",pulls:"914.3K",caps:["vision","tools"],sizes:["2b"]},
-    {slug:"llava-phi3",name:"LLaVA Phi 3",desc:"Small LLaVA fine-tuned from Phi 3 Mini",pulls:"284.4K",caps:["vision"],sizes:["3.8b"]},
-    {slug:"medgemma",name:"MedGemma",desc:"Gemma 3 variants trained for medical text and images",pulls:"33.9K",caps:["vision"],sizes:["4b","27b"],latest:"4b"},
-    {slug:"nuextract",name:"NuExtract",desc:"3.8B fine-tuned for information extraction",pulls:"507.5K",caps:[],sizes:["3.8b"]},
-    {slug:"magicoder",name:"Magicoder",desc:"7B family trained on 75K synthetic instruction data",pulls:"531.2K",caps:[],sizes:["7b"]},
-    {slug:"codegeex4",name:"CodeGeeX 4",desc:"Versatile 9B model for AI software development scenarios",pulls:"659.6K",caps:[],sizes:["9b"]},
-    {slug:"duckdb-nsql",name:"DuckDB NSQL",desc:"7B text-to-SQL model for natural language queries",pulls:"504.4K",caps:[],sizes:["7b"]},
-    {slug:"granite3.3",name:"Granite 3.3",desc:"IBM 2B and 8B with 128K context for reasoning",pulls:"1M",caps:["tools"],sizes:["2b","8b"],latest:"8b"},
-    {slug:"phi",name:"Phi",desc:"Phi-2: 2.7B model demonstrating outstanding reasoning",pulls:"1.5M",caps:[],sizes:["2.7b"]},
-    {slug:"wizardlm2",name:"WizardLM 2",desc:"State of the art by Microsoft AI for chat and complex tasks",pulls:"1.1M",caps:[],sizes:["7b","8x22b"],latest:"7b"},
-    {slug:"mistral-openorca",name:"Mistral OpenOrca",desc:"7B fine-tuned on Mistral using OpenOrca dataset",pulls:"655.3K",caps:[],sizes:["7b"]},
-    {slug:"aya-expanse",name:"Aya Expanse",desc:"Cohere models performing well across 23 languages",pulls:"930.1K",caps:["tools"],sizes:["8b","32b"],latest:"8b"},
-    {slug:"starling-lm",name:"Starling LM",desc:"Trained with reinforcement learning for improved helpfulness",pulls:"922.8K",caps:[],sizes:["7b"]},
-    {slug:"tulu3",name:"Tulu 3",desc:"Leading instruction following by Allen Institute for AI",pulls:"364.7K",caps:[],sizes:["8b","70b"],latest:"8b"},
-    {slug:"reader-lm",name:"Reader LM",desc:"Models converting HTML to Markdown for content tasks",pulls:"879.6K",caps:[],sizes:["0.5b","1.5b"],latest:"1.5b"},
-    {slug:"stablelm2",name:"Stable LM 2",desc:"1.6B and 12B multilingual in 7 languages",pulls:"969.6K",caps:[],sizes:["1.6b","12b"],latest:"1.6b"},
-    {slug:"command-r7b",name:"Command R 7B",desc:"Smallest R series delivering top speed and efficiency",pulls:"260.7K",caps:["tools"],sizes:["7b"]},
-    {slug:"dolphin-phi",name:"Dolphin Phi",desc:"2.7B uncensored Dolphin based on Phi by Microsoft Research",pulls:"1.6M",caps:[],sizes:["2.7b"]},
-    {slug:"exaone-deep",name:"EXAONE Deep",desc:"Superior reasoning in math and coding, 2.4B to 32B",pulls:"740.5K",caps:[],sizes:["2.4b","7.8b","32b"],latest:"7.8b"},
-    {slug:"zephyr",name:"Zephyr",desc:"Fine-tuned Mistral and Mixtral models as helpful assistants",pulls:"1.2M",caps:[],sizes:["7b","141b"],latest:"7b"},
-    {slug:"sailor2",name:"Sailor 2",desc:"Multilingual models for South-East Asia, 1B to 20B",pulls:"391.3K",caps:[],sizes:["1b","8b","20b"],latest:"8b"},
-    {slug:"granite-code",name:"Granite Code",desc:"Family of open foundation models for Code Intelligence by IBM",pulls:"1.3M",caps:[],sizes:["3b","8b","20b","34b"],latest:"8b"},
-    {slug:"nous-hermes",name:"Nous Hermes",desc:"General use models based on Llama by Nous Research",pulls:"1.1M",caps:[],sizes:["7b","13b"],latest:"7b"},
-    {slug:"deepseek-v3.2",name:"DeepSeek-V3.2",desc:"Model balancing efficiency with reasoning and agent performance",pulls:"2.2M",caps:["tools","thinking"],sizes:[]},
-    {slug:"llama3-groq-tool-use",name:"Llama 3 Groq Tool Use",desc:"Groq models advancing open-source for tool calling",pulls:"938.9K",caps:["tools"],sizes:["8b","70b"],latest:"8b"},
-    {slug:"paraphrase-multilingual",name:"Paraphrase Multilingual",desc:"Sentence-transformers for clustering and semantic search",pulls:"846K",caps:["embedding"],sizes:["278m"]},
-    {slug:"deepscaler",name:"DeepScaler",desc:"Fine-tuned Deepseek-R1-Distilled surpassing o1-preview at 1.5B",pulls:"1.2M",caps:["thinking"],sizes:["1.5b"]},
-    {slug:"phi4-mini-reasoning",name:"Phi-4-Mini-Reasoning",desc:"Lightweight 3.8B balancing efficiency with reasoning",pulls:"269.2K",caps:[],sizes:["3.8b"]},
-    {slug:"embeddinggemma",name:"EmbeddingGemma",desc:"300M parameter embedding model from Google",pulls:"1.2M",caps:["embedding"],sizes:["300m"]},
-    {slug:"snowflake-arctic-embed2",name:"Snowflake Arctic Embed 2",desc:"Frontier embedding with multilingual support",pulls:"395.7K",caps:["embedding"],sizes:["568m"]},
-    {slug:"bge-large",name:"BGE Large",desc:"Embedding model from BAAI mapping texts to vectors",pulls:"265.8K",caps:["embedding"],sizes:["335m"]},
-    {slug:"translategemma",name:"TranslateGemma",desc:"Open translation models built on Gemma 3 for 55 languages",pulls:"1.5M",caps:["vision"],sizes:["4b","12b","27b"],latest:"4b"},
-    {slug:"codeqwen",name:"CodeQwen",desc:"CodeQwen 1.5: large model pretrained on code data",pulls:"1.1M",caps:[],sizes:["7b"]},
-    {slug:"qwen3-coder-next",name:"Qwen 3 Coder Next",desc:"Coding-focused model optimized for agentic workflows",pulls:"1.3M",caps:["tools"],sizes:[]},
-    {slug:"nomic-embed-text-v2-moe",name:"Nomic Embed Text V2 MoE",desc:"Multilingual MoE text embedding excelling at retrieval",pulls:"230.9K",caps:["embedding"],sizes:[]},
-    {slug:"devstral-2",name:"Devstral 2",desc:"123B excelling at codebase tools and multi-file editing",pulls:"224.9K",caps:["tools"],sizes:["123b"]},
-    {slug:"solar-pro",name:"Solar Pro",desc:"Solar Pro Preview: 22B for single GPU fitting",pulls:"534K",caps:[],sizes:["22b"]},
-    {slug:"kimi-k2-thinking",name:"Kimi K2 Thinking",desc:"Moonshot AI's best open-source thinking model",pulls:"2.1M",caps:["tools","thinking"],sizes:[]},
-    {slug:"lfm2.5-thinking",name:"LFM 2.5 Thinking",desc:"Hybrid models designed for on-device deployment",pulls:"1.2M",caps:["tools","thinking"],sizes:["1.2b"]},
-    {slug:"olmo-3",name:"Olmo 3",desc:"Open language models on Dolma 3 dataset, 7B and 32B",pulls:"430.9K",caps:[],sizes:["7b","32b"],latest:"7b"},
-    {slug:"nemotron",name:"Nemotron",desc:"Llama-3.1-Nemotron 70B customized by NVIDIA",pulls:"581K",caps:["tools"],sizes:["70b"]},
-  ];
-
-  let _mbFilter = 'all';
-
-  async function openModelBrowser() {
-    document.getElementById('modelBrowserBackdrop').classList.add('open');
-    document.getElementById('modelBrowserSearch').value = '';
-    _mbFilter = 'all';
-    document.querySelectorAll('.mbf-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
-    // Refresh detected models so chips reflect the current state on disk
-    await detectOllamaModels();
-    renderModelBrowser();
-  }
-
-  function closeModelBrowser() {
-    document.getElementById('modelBrowserBackdrop').classList.remove('open');
-  }
-
-  function setModelBrowserFilter(f) {
-    _mbFilter = f;
-    document.querySelectorAll('.mbf-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
-    renderModelBrowser();
-  }
-
-  function filterModelBrowser() { renderModelBrowser(); }
-
-  function renderModelBrowser() {
-    const q     = (document.getElementById('modelBrowserSearch').value || '').toLowerCase();
-    const grid  = document.getElementById('modelBrowserGrid');
-    const count = document.getElementById('modelBrowserCount');
-
-    // Deduplicate by slug
-    const seen = new Set();
-    const isModelDownloaded = m => m.sizes.some(s => _detectedOllamaModels.some(d => {
-      const [dSlug, dTag] = d.split(':');
-      return dSlug === m.slug && (dTag === s || (dTag === 'latest' && m.latest === s));
-    }));
-    const models = OLLAMA_LIBRARY.filter(m => {
-      if (seen.has(m.slug)) return false;
-      seen.add(m.slug);
-      if (_mbFilter !== 'all' && !m.caps.includes(_mbFilter)) return false;
-      if (q && !m.name.toLowerCase().includes(q) && !m.slug.toLowerCase().includes(q) && !m.desc.toLowerCase().includes(q)) return false;
-      return true;
-    }).sort((a, b) => isModelDownloaded(b) - isModelDownloaded(a));
-
-    count.textContent = `${models.length} model${models.length !== 1 ? 's' : ''}`;
-
-    const capStyle = {
-      tools:     'background:rgba(108,99,255,0.15);color:var(--accent);border:1px solid rgba(108,99,255,0.3)',
-      vision:    'background:rgba(99,179,237,0.15);color:var(--blue,#63b3ed);border:1px solid rgba(99,179,237,0.3)',
-      thinking:  'background:rgba(243,156,18,0.15);color:#f39c12;border:1px solid rgba(243,156,18,0.3)',
-      embedding: 'background:rgba(46,204,113,0.15);color:var(--green,#2ecc71);border:1px solid rgba(46,204,113,0.3)',
-    };
-    const capLabel = { tools:'🔧 Tools', vision:'👁 Vision', thinking:'🧠 Thinking', embedding:'📐 Embed' };
-
-    grid.innerHTML = models.map(m => {
-      const caps = m.caps.filter(c => capStyle[c]).map(c =>
-        `<span class="mb-cap" style="${capStyle[c]}">${capLabel[c]}</span>`
-      ).join('');
-      const escapedSlug = m.slug.replace(/'/g, "\\'");
-      const sizes = m.sizes.map(s => {
-        const escapedS = s.replace(/'/g, "\\'");
-        const isLatest = m.latest === s;
-        const isDownloaded = _detectedOllamaModels.some(d => {
-          const [dSlug, dTag] = d.split(':');
-          return dSlug === m.slug && (dTag === s || (dTag === 'latest' && isLatest));
-        });
-        // Use the exact name Ollama has on disk (may be :latest rather than :size)
-        const actualEntry = _detectedOllamaModels.find(d => {
-          const [dSlug, dTag] = d.split(':');
-          return dSlug === m.slug && (dTag === s || (dTag === 'latest' && isLatest));
-        });
-        const fullTag = actualEntry || `${m.slug}:${s}`;
-        const escapedTag = fullTag.replace(/'/g, "\\'");
-        const dlIcon = isDownloaded ? '<span style="font-size:9px">✓</span>' : '';
-        const latestDot = isLatest && !isDownloaded ? '<span style="font-size:9px;opacity:0.75">●</span>' : '';
-        const titleAttr = [isDownloaded ? 'downloaded' : '', isLatest ? 'latest (default)' : ''].filter(Boolean).join(' · ');
-        const delBtn = isDownloaded
-          ? `<span class="mb-size-del" title="Delete from Ollama" onclick="event.stopPropagation();deleteOllamaModelFromBrowser('${escapedTag}',this)">✕</span>`
-          : '';
-        return `<span class="mb-size" data-latest="${isLatest}" data-downloaded="${isDownloaded}" title="${titleAttr}" onclick="selectModelSize('${escapedSlug}','${escapedS}',this)">${dlIcon}${s}${latestDot}${delBtn}</span>`;
-      }).join('');
-      const hasDownload = m.sizes.some(s =>
-        _detectedOllamaModels.some(d => {
-          const [dSlug, dTag] = d.split(':');
-          return dSlug === m.slug && (dTag === s || (dTag === 'latest' && m.latest === s));
-        })
-      );
-      return `<div class="mb-card" data-slug="${m.slug}" data-selected-size="" data-has-download="${hasDownload}">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-          <div style="font-size:13px;font-weight:600;line-height:1.3">${m.name}</div>
-          <div style="font-size:10px;color:var(--text-muted);white-space:nowrap;flex-shrink:0">${m.pulls} pulls</div>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);line-height:1.5;flex:1">${m.desc}</div>
-        ${caps ? `<div style="display:flex;flex-wrap:wrap;gap:4px">${caps}</div>` : ''}
-        ${sizes ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px">${sizes}</div>` : ''}
-        <div class="mb-warn" style="display:none;font-size:10px;border-radius:6px;padding:5px 8px;line-height:1.5"></div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-          <span style="font-size:10px;color:var(--text-muted);font-family:monospace">${m.slug}</span>
-          <button class="btn btn-sm btn-primary mb-pull-btn" style="font-size:11px;padding:4px 10px" onclick="pullFromBrowser('${escapedSlug}')">Pull</button>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  function estimateSizeGb(sizeTag) {
-    // Mixture-of-experts: e.g. "8x7b", "56x3b"
-    const moe = sizeTag.match(/^(\d+)x([\d.]+)(b|m)$/i);
-    if (moe) {
-      const experts = parseInt(moe[1], 10);
-      const perExpert = parseFloat(moe[2]);
-      const unit = moe[3].toLowerCase();
-      const params = experts * perExpert * (unit === 'b' ? 1 : 0.001);
-      return params * 0.6; // ~0.6 GB per billion params (q4 quantization)
-    }
-    // Standard: "7b", "1.5b", "270m", "e8b"
-    const std = sizeTag.match(/^e?([\d.]+)(b|m)$/i);
-    if (std) {
-      const num = parseFloat(std[1]);
-      const unit = std[2].toLowerCase();
-      const params = unit === 'b' ? num : num * 0.001;
-      return params * 0.6;
-    }
-    return null;
-  }
-
-  function getSizeWarning(sizeTag) {
-    const gb = estimateSizeGb(sizeTag);
-    if (!gb || gb < 2) return null;
-    if (gb < 5)  return { level: 'info',   msg: `~${gb.toFixed(1)} GB download` };
-    if (gb < 15) return { level: 'warn',   msg: `~${gb.toFixed(0)} GB download — may take 5–15 min on a typical connection` };
-    if (gb < 50) return { level: 'warn',   msg: `~${gb.toFixed(0)} GB download — may take 20–60 min` };
-    return             { level: 'danger', msg: `~${gb.toFixed(0)} GB download — very large model, may take several hours` };
-  }
-
-  function selectModelSize(slug, size, el) {
-    // Partial chips are not selectable
-    if (el.dataset.partial === 'true') return;
-
-    const card = el.closest('.mb-card');
-    if (!card) return;
-    const wasSelected = card.dataset.selectedSize === size;
-
-    // Deselect every chip in every OTHER card first (single global selection)
-    document.querySelectorAll('.mb-card').forEach(c => {
-      if (c === card) return;
-      c.querySelectorAll('.mb-size').forEach(s => s.classList.remove('active'));
-      c.dataset.selectedSize = '';
-      const pb = c.querySelector('.mb-pull-btn');
-      if (pb) pb.textContent = 'Pull';
-      const w = c.querySelector('.mb-warn');
-      if (w) w.style.display = 'none';
-    });
-
-    // Deselect all chips on this card
-    card.querySelectorAll('.mb-size').forEach(s => s.classList.remove('active'));
-
-    if (wasSelected) {
-      // Toggle off
-      card.dataset.selectedSize = '';
-      const pullBtn = card.querySelector('.mb-pull-btn');
-      if (pullBtn) pullBtn.textContent = 'Pull';
-      const warn = card.querySelector('.mb-warn');
-      if (warn) warn.style.display = 'none';
-    } else {
-      // Select this chip
-      card.dataset.selectedSize = size;
-      el.classList.add('active');
-      const pullBtn = card.querySelector('.mb-pull-btn');
-      if (pullBtn) pullBtn.textContent = `Pull :${size}`;
-      const warn = card.querySelector('.mb-warn');
-      if (warn) {
-        const w = getSizeWarning(size);
-        if (w) {
-          const colors = { info: 'rgba(52,152,219,0.15)', warn: 'rgba(243,156,18,0.15)', danger: 'rgba(231,76,60,0.15)' };
-          const borders = { info: 'rgba(52,152,219,0.4)', warn: 'rgba(243,156,18,0.4)', danger: 'rgba(231,76,60,0.4)' };
-          const textColors = { info: '#3498db', warn: '#f39c12', danger: 'var(--red,#e74c3c)' };
-          warn.style.background = colors[w.level];
-          warn.style.border = `1px solid ${borders[w.level]}`;
-          warn.style.color = textColors[w.level];
-          warn.textContent = `⚠ ${w.msg}`;
-          warn.style.display = 'block';
-        } else {
-          warn.style.display = 'none';
-        }
-      }
-    }
-  }
-
-  function _mbStatusMsg(msg, isError) {
-    const statusBar  = document.getElementById('mbPullStatus');
-    const statusText = document.getElementById('mbPullStatusText');
-    const bar        = document.getElementById('mbPullBar');
-    if (!statusBar) return;
-    statusBar.style.display = 'flex';
-    statusText.textContent  = msg;
-    statusText.style.color  = isError ? 'var(--red,#e74c3c)' : 'var(--green,#2ecc71)';
-    if (bar) bar.style.width = '0%';
-    clearTimeout(statusBar._hideTimer);
-    statusBar._hideTimer = setTimeout(() => {
-      statusBar.style.display = 'none';
-      statusText.style.color  = '';
-    }, isError ? 4000 : 2500);
-  }
-
-  async function deleteOllamaModelFromBrowser(fullTag, delBtnEl) {
-    const chip = delBtnEl.closest('.mb-size');
-    if (!chip) return;
-    chip.style.opacity = '0.4';
-    chip.style.pointerEvents = 'none';
-    try {
-      const res = await api('/admin/ollama/model', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: fullTag }),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        chip.style.opacity = '';
-        chip.style.pointerEvents = '';
-        _mbStatusMsg(`⚠ ${d.detail || 'Delete failed'}`, true);
-        return;
-      }
-      _mbStatusMsg(`✓ ${fullTag} deleted`, false);
-      await detectOllamaModels();
-      renderModelBrowser();
-
-      // If only one model remains, auto-select it (takes effect immediately, no restart needed)
-      if (_detectedOllamaModels.length === 1) {
-        const only = _detectedOllamaModels[0];
-        await selectOllamaModel(only);
-      }
-    } catch (e) {
-      chip.style.opacity = '';
-      chip.style.pointerEvents = '';
-      _mbStatusMsg(`⚠ ${e.message}`, true);
-    }
-  }
-
-  let _pullAbortController = null;
-
-  function cancelModelPull() {
-    if (_pullAbortController) {
-      _pullAbortController.abort();
-      _pullAbortController = null;
-    }
-  }
-
-  async function pullFromBrowser(slug) {
-    const card = document.querySelector(`.mb-card[data-slug="${CSS.escape(slug)}"]`);
-    const selectedSize = card?.dataset.selectedSize || '';
-    const fullModel = selectedSize ? `${slug}:${selectedSize}` : slug;
-
-    const statusBar  = document.getElementById('mbPullStatus');
-    const statusText = document.getElementById('mbPullStatusText');
-    const bar        = document.getElementById('mbPullBar');
-    const cancelBtn  = document.getElementById('mbCancelBtn');
-
-    _pullAbortController = new AbortController();
-
-    statusBar.style.display = 'flex';
-    statusText.textContent  = `Pulling ${fullModel}...`;
-    statusText.style.color  = '';
-    bar.style.width = '0%';
-    if (cancelBtn) cancelBtn.style.display = '';
-
-    const ollamaUrl = (document.getElementById('appOllamaUrl')?.value || '').trim() || 'http://ollama:11434';
-
-    const hideCancelBtn = () => { if (cancelBtn) cancelBtn.style.display = 'none'; };
-
-    try {
-      const resp = await api(`/admin/ollama/pull`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: fullModel }),
-        signal: _pullAbortController.signal,
-      });
-      if (!resp.ok) {
-        const d = await resp.json().catch(() => ({}));
-        statusText.textContent = `⚠ ${d.detail || 'Pull failed'}`;
-        statusText.style.color = 'var(--red)';
-        hideCancelBtn();
-        return;
-      }
-      const reader = resp.body.getReader();
-      const dec    = new TextDecoder();
-      let buf = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const raw = line.slice(6).trim();
-          if (!raw) continue;
-          try {
-            const evt = JSON.parse(raw);
-            if (evt.status === 'error') {
-              statusText.textContent = `⚠ ${evt.error || 'Pull failed'}`;
-              statusText.style.color = 'var(--red)';
-              hideCancelBtn();
-              return;
-            }
-            let pct = 0;
-            if (evt.total && evt.completed) {
-              pct = Math.min(99, Math.round((evt.completed / evt.total) * 100));
-            }
-            if (evt.status === 'success' || evt.status === 'done') pct = 100;
-            bar.style.width = `${pct}%`;
-            let label = `${fullModel}: ${evt.status || ''}`;
-            if (evt.total && evt.completed) {
-              const mbDone  = (evt.completed / 1048576).toFixed(0);
-              const mbTotal = (evt.total / 1048576).toFixed(0);
-              label += ` — ${mbDone} / ${mbTotal} MB (${pct}%)`;
-            }
-            statusText.textContent = label;
-            statusText.style.color = pct === 100 ? 'var(--green)' : '';
-            if (pct === 100) {
-              bar.style.width = '100%';
-              statusText.textContent = `✓ ${fullModel} pulled successfully`;
-              statusText.style.color = 'var(--green)';
-              hideCancelBtn();
-              setTimeout(() => { statusBar.style.display = 'none'; statusText.style.color = ''; }, 3000);
-              await detectOllamaModels();
-              renderModelBrowser();
-            }
-          } catch (_) { /* ignore parse errors */ }
-        }
-      }
-    } catch (e) {
-      hideCancelBtn();
-      if (e.name === 'AbortError') {
-        statusText.textContent = '⊘ Download cancelled';
-        statusText.style.color = 'var(--text-muted)';
-        bar.style.width = '0%';
-        setTimeout(() => { statusBar.style.display = 'none'; statusText.style.color = ''; }, 2000);
-      } else {
-        statusText.textContent = `⚠ ${e.message}`;
-        statusText.style.color = 'var(--red)';
-      }
-    } finally {
-      _pullAbortController = null;
-    }
-  }
 
 </script>
 
@@ -4966,47 +3826,6 @@ select.filter-sel{background:var(--surface2);border:1px solid var(--border);bord
   </div>
 </div>
 
-
-<!-- ── Ollama Model Browser Modal ── -->
-<div class="backdrop" id="modelBrowserBackdrop" onclick="if(event.target===this)closeModelBrowser()">
-  <div class="modal" style="max-width:960px;width:96vw;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
-    <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);flex-shrink:0">
-      <div>
-        <div style="font-size:16px;font-weight:700">Ollama Model Library</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">Browse and pull models from ollama.com/library</div>
-      </div>
-      <button onclick="closeModelBrowser()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1" title="Close">&#x2715;</button>
-    </div>
-    <!-- Search + filters -->
-    <div style="padding:14px 22px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-      <input type="text" id="modelBrowserSearch" placeholder="Search models…" oninput="filterModelBrowser()"
-        style="flex:1;min-width:200px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:7px 12px;outline:none">
-      <div style="display:flex;gap:6px;flex-wrap:wrap" id="modelBrowserFilters">
-        <button class="mbf-btn active" data-filter="all"       onclick="setModelBrowserFilter('all')">All</button>
-        <button class="mbf-btn"        data-filter="tools"     onclick="setModelBrowserFilter('tools')">🔧 Tools</button>
-        <button class="mbf-btn"        data-filter="vision"    onclick="setModelBrowserFilter('vision')">👁 Vision</button>
-        <button class="mbf-btn"        data-filter="thinking"  onclick="setModelBrowserFilter('thinking')">🧠 Thinking</button>
-        <button class="mbf-btn"        data-filter="embedding" onclick="setModelBrowserFilter('embedding')">📐 Embedding</button>
-      </div>
-    </div>
-    <!-- Pull status bar (shown while pulling) -->
-    <div id="mbPullStatus" style="display:none;padding:8px 22px;background:rgba(99,179,237,0.08);border-bottom:1px solid var(--border);flex-shrink:0;font-size:12px;gap:10px;align-items:center;flex-wrap:wrap">
-      <span id="mbPullStatusText" style="flex:1"></span>
-      <div style="width:200px;background:var(--surface2);border-radius:4px;height:5px;overflow:hidden">
-        <div id="mbPullBar" style="height:100%;background:var(--blue,#63b3ed);width:0%;transition:width 0.3s"></div>
-      </div>
-      <button id="mbCancelBtn" class="btn btn-sm" style="font-size:11px;padding:3px 10px;display:none" onclick="cancelModelPull()">✕ Cancel</button>
-    </div>
-    <!-- Grid -->
-    <div id="modelBrowserGrid" style="overflow-y:auto;padding:16px 22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;flex:1"></div>
-    <!-- Footer -->
-    <div style="padding:12px 22px;border-top:1px solid var(--border);flex-shrink:0;font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center">
-      <span id="modelBrowserCount"></span>
-      <a href="https://ollama.com/library" target="_blank" style="color:var(--blue,#63b3ed)">View full library ↗</a>
-    </div>
-  </div>
-</div>
 
 <!-- ── Confirm Modal ── -->
 <div class="backdrop" id="confirmBackdrop" style="z-index:1100">

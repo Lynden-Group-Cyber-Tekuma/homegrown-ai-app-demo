@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 WORKDIR /app
 
-# gosu lets the entrypoint drop from root to appuser after fixing socket perms
+# gosu lets the entrypoint drop from root to appuser after preparing /app/data
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gosu \
     && rm -rf /var/lib/apt/lists/*

@@ -45,7 +45,7 @@ Due to backend changes, remove old containers, volumes, and images before starti
 docker compose down -v --rmi all
 ```
 
-This stops all containers, deletes the named volumes (database, app data, Ollama models), and removes locally-built images. Your `docker-compose.yml` and config files are not touched.
+This stops all containers, deletes the named volumes (database, app data), and removes locally-built images. Your `docker-compose.yml` and config files are not touched.
 
 > **Note:** This will erase all chat history, users, and settings stored in the database. Export anything you need first.
 
@@ -133,7 +133,6 @@ A LiteLLM proxy runs as a separate Docker service on port 4000. Models listed in
 | `nousresearch/hermes-3-llama-3.1-405b:free` | OpenRouter | **Free** |
 | `bytedance/seedance-1-5-pro` | OpenRouter | Requires `OPENROUTER_API_KEY` |
 | `sourceful/riverflow-v2-fast-preview` | OpenRouter | Requires `OPENROUTER_API_KEY` |
-| `ollama/*` | Ollama (local) | See [Ollama](#ollama-local-models) |
 | `huggingface/Qwen3VL-8B-Instruct-F16` | Local OpenAI-compatible | See [Local endpoint](#local-openai-compatible-endpoint) |
 
 To add or remove models, edit `litellm/config.yaml` and restart the `litellm` service:
@@ -183,104 +182,6 @@ Discovered models are persisted in the database and survive restarts. Re-trigger
 
 ---
 
-## Ollama (local models)
-
-Ollama lets you run open-weight models locally — no cloud API key needed.
-
-### Prerequisites
-
-**Hardware:**
-- **Apple Silicon (M1/M2/M3/M4):** Works out of the box via Metal. 8 GB RAM minimum; 16 GB+ recommended for 7B+ models.
-- **NVIDIA GPU:** Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed on the host. The Ollama container will use the GPU automatically.
-- **CPU only:** Works but is slow. Stick to small models (1B–3B).
-
-**Model size guide:**
-
-| Model size | Min RAM/VRAM |
-| ---------- | ------------ |
-| 1B–3B | 4 GB |
-| 7B–8B | 8 GB |
-| 13B | 16 GB |
-| 70B | 48 GB |
-
-### Option A — Admin UI (recommended)
-
-The easiest way to run Ollama is entirely through the admin panel — no CLI needed.
-
-1. Go to **Admin → Settings → Ollama** and toggle **Enable Ollama** on.
-2. Click **Save** — the app starts the Ollama container automatically and joins it to the correct Docker network.
-3. Once the service shows **● Running**, the **Active Model** and **Pull a Model** sections appear.
-4. Use **Pull a Model** (or **Browse Models** for a searchable library) to download a model.
-5. Click **Detect Models** to populate the picker, select a model, and **Save**.
-
-> **Note:** The Docker socket must be mounted in the app container (it is by default in `docker-compose.yml`) for the UI to be able to start/stop the Ollama container.
-
-### Option B — Via Docker Compose CLI
-
-Ollama is included in `docker-compose.yml` as an **optional service** using a Docker Compose profile.
-
-**Start Ollama:**
-```bash
-docker compose --profile ollama up -d ollama
-```
-
-**Pull a model:**
-```bash
-docker exec homegrown-ai-app-demo-ollama-1 ollama pull gemma3:270m
-```
-
-**Stop Ollama when not needed:**
-```bash
-docker compose --profile ollama stop ollama
-```
-
-Models are stored in the `ollama_data` Docker volume and persist across restarts.
-
-### Option C — Ollama on the host machine
-
-Install [Ollama](https://ollama.com) directly on the host and pull models with `ollama pull <model>`. Update the Base URL in **Admin → Settings → Ollama**:
-
-```
-http://host.docker.internal:11434
-```
-
-### Option D — Remote Ollama server
-
-Point the Base URL in **Admin → Settings → Ollama** to any Ollama instance reachable over the network:
-
-```
-http://<remote-host>:11434
-```
-
-### Corporate / SSL-inspecting networks
-
-If your network uses SSL inspection (common in enterprise environments), Ollama's registry connections will fail with a certificate error. Fix it by trusting your corporate CA:
-
-1. Export your corporate root CA certificate as PEM:
-   ```bash
-   security find-certificate -a -p /Library/Keychains/System.keychain > certs/corporate-ca.pem
-   ```
-2. Place `corporate-ca.pem` in a `certs/` folder at the repo root (created if it doesn't exist).
-3. The app automatically mounts this cert into the Ollama container and sets `SSL_CERT_FILE` when creating it via the admin UI. The `docker-compose.yml` Ollama service also mounts it for profile-based starts.
-
-### Adding more Ollama models
-
-1. Pull the model via **Admin → Settings → Ollama → Pull a Model**, or via CLI:
-   ```bash
-   docker exec homegrown-ai-app-demo-ollama-1 ollama pull <model>
-   ```
-2. Add an entry to `litellm/config.yaml`:
-   ```yaml
-   - model_name: <model>
-     litellm_params:
-       model: ollama/<model>
-       api_base: os.environ/OLLAMA_BASE_URL
-   ```
-3. Click **Detect Models** in the Ollama settings pane to refresh the picker.
-4. Restart LiteLLM: `docker compose restart litellm`
-
----
-
 ## Local OpenAI-compatible endpoint
 
 For local servers that expose OpenAI-style `/v1/chat/completions` endpoints, add to the `litellm` service `environment` block in `docker-compose.yml`:
@@ -304,7 +205,7 @@ Located at `/admin` (admin password required).
 | **Prompt Security** | PS mode stats, per-mode toggle cards |
 | **Users** | User list with per-user stats, inline edit, detail view with charts |
 | **Activity Log** | Combined view of all chat messages and config change audit events |
-| **Settings** | All configuration — General, Application, Security, Email, PS Regions, Ollama, LLM Keys; red nav dots flag anything misconfigured |
+| **Settings** | All configuration — General, Application, Security, Email, PS Regions, LLM Keys; red nav dots flag anything misconfigured |
 
 ---
 

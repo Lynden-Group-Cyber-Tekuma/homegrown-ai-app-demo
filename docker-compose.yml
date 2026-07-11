@@ -3,13 +3,10 @@ services:
     build: .
     ports:
       - "9100:8000"
-    user: "0"   # entrypoint needs root to fix docker socket group, then drops to appuser via gosu
+    user: "0"   # entrypoint needs root to prepare /app/data, then drops to appuser via gosu
     volumes:
       - ./app:/app
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./litellm:/app/litellm
     environment:
-      COMPOSE_PROJECT_NAME: homegrown-ai-app-demo
       # Fernet key for encrypting secrets at rest (PS API keys, LLM keys, JWT secret).
       # Generate:  python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
       # Set in a .env file (never commit the actual key):  ENCRYPTION_KEY=<your-key>
@@ -50,36 +47,8 @@ services:
     environment:
       DATABASE_URL: "postgresql://hgapp:hgapp_dev@db:5432/litellm"
       PYTHONHTTPSVERIFY: "0"
-      OLLAMA_BASE_URL: "http://ollama:11434"
     command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
-    restart: unless-stopped
-
-  # ── Ollama (optional — not started by default) ────────────────────────────
-  # Start with:  docker compose --profile ollama up -d
-  # Pull a model: docker exec homegrown-ai-app-demo-ollama-1 ollama pull gemma3:270m
-  # Stop with:   docker compose --profile ollama stop ollama
-  ollama:
-    image: ollama/ollama:latest
-    profiles:
-      - ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-      - ./certs/corporate-ca.pem:/certs/corporate-ca.pem:ro
-    environment:
-      OLLAMA_INSECURE: "true"
-      SSL_CERT_FILE: /certs/corporate-ca.pem
-    networks:
-      - default
-      - home-grown-app_default   # join the main app network so litellm can reach http://ollama:11434
     restart: unless-stopped
 
 volumes:
   pgdata:
-  ollama_data:
-
-networks:
-  default: {}
-  home-grown-app_default:
-    external: true   # created by the home-grown-app compose project

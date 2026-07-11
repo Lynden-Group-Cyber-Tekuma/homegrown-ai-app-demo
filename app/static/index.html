@@ -725,7 +725,6 @@ pre.cv-code { background: var(--surface2); border: 1px solid var(--border); bord
     </div>
     <div class="spacer"></div>
     <select id="modelSelect"><option disabled selected>Loading…</option></select>
-    <span id="ollamaModelBadge" style="display:none;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;border:1px solid rgba(108,99,255,0.4);background:rgba(108,99,255,0.12);color:var(--accent);white-space:nowrap">🦙 <span id="ollamaModelName"></span></span>
     <button class="icon-btn" id="sysPromptBtn" title="System prompt">⚙️</button>
     <button id="introBtn" title="Architecture & Integration Guide">Intro</button>
     <button id="demoBtn" title="Demo Scenarios">Demo</button>
@@ -1474,7 +1473,7 @@ reply = await client.chat.completions.create(
               <g transform="translate(29,29)" stroke="#2ecc71" stroke-width="1.4" fill="none" stroke-linecap="round"><circle cx="0" cy="0" r="9"/><ellipse cx="0" cy="0" rx="3.5" ry="9"/><line x1="-9" y1="0" x2="9" y2="0"/><path d="M-8,-4.5 h16 M-8,4.5 h16" opacity="0.6"/></g>
               <text x="54" y="28" class="n-title">1st Party LLMs</text>
               <text x="54" y="44" class="n-desc">Internal / Self-hosted</text>
-              <g transform="translate(14,58)"><rect width="172" height="24" rx="4" fill="#20232f"/><text x="86" y="16" text-anchor="middle" class="pill" style="font-size:10px">Ollama</text><rect y="30" width="172" height="24" rx="4" fill="#20232f"/><text x="86" y="46" text-anchor="middle" class="pill" style="font-size:10px">Local Models</text></g>
+              <g transform="translate(14,58)"><rect width="172" height="24" rx="4" fill="#20232f"/><text x="86" y="16" text-anchor="middle" class="pill" style="font-size:10px">Local Models</text><rect y="30" width="172" height="24" rx="4" fill="#20232f"/><text x="86" y="46" text-anchor="middle" class="pill" style="font-size:10px">Self-hosted LLMs</text></g>
               <circle cx="186" cy="14" r="3" fill="#2ecc71"/>
             </g>
             <!-- API Gateway (DMZ, top) -->
@@ -1892,7 +1891,6 @@ reply = await client.chat.completions.create(
         <button class="integ-tab active" data-integ="api">API (Prevention)</button>
         <button class="integ-tab" data-integ="gw-openai">AI GW: OpenAI</button>
         <button class="integ-tab" data-integ="gw-azure">AI GW: Azure OpenAI</button>
-        <button class="integ-tab" data-integ="gw-ollama">AI GW: Ollama</button>
         <button class="integ-tab" data-integ="plugins">Plugins</button>
       </div>
 
@@ -1917,14 +1915,6 @@ reply = await client.chat.completions.create(
         <div class="integ-code-wrap">
           <button class="integ-copy" onclick="integCopy(this)">Copy</button>
           <pre><code class="language-python" id="integCodeGwAzure"></code></pre>
-        </div>
-      </div>
-
-      <div id="integGwOllama" class="integ-pane">
-        <div class="integ-desc">Protect local/self-hosted LLMs via Ollama. Route through PS gateway with the <code>forward-domain</code> pointing to your Ollama server.</div>
-        <div class="integ-code-wrap">
-          <button class="integ-copy" onclick="integCopy(this)">Copy</button>
-          <pre><code class="language-python" id="integCodeGwOllama"></code></pre>
         </div>
       </div>
 
@@ -2286,8 +2276,6 @@ reply = await client.chat.completions.create(
   }
   let OPEN_MODE = false;
   let FIXED_MODEL = null;
-  let OLLAMA_ENABLED = false;
-  let OLLAMA_MODEL_IDS_ORDERED = []; // admin-configured order, first = active/default
 
   // ── Client-side AES-GCM encryption for Open Mode PS App ID ───────────────
   let _encCryptoKey = null;
@@ -2459,10 +2447,6 @@ reply = await client.chat.completions.create(
         const s = await sr.json();
         OPEN_MODE = s.user_mgmt_enabled === false;
         if (s.fixed_model_enabled && s.fixed_model_id) FIXED_MODEL = s.fixed_model_id;
-        OLLAMA_ENABLED = s.ollama_enabled === true;
-        if (OLLAMA_ENABLED && s.ollama_model_ids) {
-          OLLAMA_MODEL_IDS_ORDERED = s.ollama_model_ids.split(',').map(x => x.trim()).filter(Boolean);
-        }
         if (OPEN_MODE) {
           const hint = document.getElementById('psSettingsHint');
           if (hint) hint.textContent = 'Select your Prompt Security region and enter your App ID. Your settings are stored locally in your browser — nothing is sent to the server.';
@@ -2620,8 +2604,8 @@ reply = await client.chat.completions.create(
       available.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
-        // Strip provider-namespace prefix for display (e.g. "ollama/gemma3:latest" → "gemma3:latest", "openai/gpt-4.1" → "gpt-4.1")
-        const displayId = m.id.replace(/^(?:ollama|openai|anthropic|perplexity|google)\//, '');
+        // Strip provider-namespace prefix for display (e.g. "openai/gpt-4.1" → "gpt-4.1")
+        const displayId = m.id.replace(/^(?:openai|anthropic|perplexity|google)\//, '');
         const provTag = m.provider ? ` [${m.provider}]` : '';
         opt.textContent = displayId + provTag;
         if (!firstSelectable) firstSelectable = opt;
@@ -2630,7 +2614,7 @@ reply = await client.chat.completions.create(
       modelSelect.appendChild(grp);
     }
 
-    if (OLLAMA_ENABLED) addGroup('Local Models (Ollama)', local);
+    addGroup('Local Models', local);
     addGroup('Free Models', free);
     addGroup('Paid Models', paid);
 
@@ -2644,22 +2628,7 @@ reply = await client.chat.completions.create(
       firstSelectable.selected = true;
     }
 
-    // ── Model selector: always visible as a dropdown ──
-    // When Ollama models and LLM provider models are both available, the user can
-    // pick from all of them in one unified selector. The Ollama badge is never shown.
-    document.getElementById('ollamaModelBadge').style.display = 'none';
     modelSelect.style.display = '';
-
-    // If no saved preference, default to the first Ollama model (admin-ordered) when available.
-    // local model IDs now carry the "ollama/" prefix (e.g. "ollama/gemma3:latest"),
-    // while OLLAMA_MODEL_IDS_ORDERED holds bare names — compare after stripping.
-    if (OLLAMA_ENABLED && local.length && !savedModel) {
-      const preferredId = local.find(m =>
-        OLLAMA_MODEL_IDS_ORDERED.includes(m.id.replace(/^ollama\//, ''))
-      )?.id || local[0].id;
-      const prefOpt = modelSelect.querySelector(`option[value="${CSS.escape(preferredId)}"]`);
-      if (prefOpt) prefOpt.selected = true;
-    }
 
     // Persist whatever is now selected so the next load restores it without needing a manual change.
     if (modelSelect.value) localStorage.setItem(_modelStorageKey, modelSelect.value);
@@ -3068,7 +3037,6 @@ reply = await client.chat.completions.create(
       { name: 'Anthropic',    llm: 'api.anthropic.com',                     psUrl: ps },
       { name: 'Azure OpenAI', llm: '{resource}.openai.azure.com',           psUrl: ps },
       { name: 'Gemini',       llm: 'generativelanguage.googleapis.com',     psUrl: `${ps}/v1beta/models/{model}:generateContent`, note: 'Add header: forward-domain: generativelanguage.googleapis.com' },
-      { name: 'Ollama',       llm: 'localhost:11434 (or your Ollama host)', psUrl: `${ps}/v1/ollama` },
     ];
     const cards = document.getElementById('gwProviderCards');
     cards.innerHTML = providers.map(p => `
@@ -4666,7 +4634,7 @@ reply = await client.chat.completions.create(
       document.querySelectorAll('.integ-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.integ-pane').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
-      const map = { api:'integApi', 'gw-openai':'integGwOpenai', 'gw-azure':'integGwAzure', 'gw-ollama':'integGwOllama', plugins:'integPlugins' };
+      const map = { api:'integApi', 'gw-openai':'integGwOpenai', 'gw-azure':'integGwAzure', plugins:'integPlugins' };
       document.getElementById(map[tab.dataset.integ]).classList.add('active');
     });
   });
@@ -4770,25 +4738,6 @@ response = client.chat.completions.create(
     ],
 )
 print(response.choices[0].message.content)`;
-
-    document.getElementById('integCodeGwOllama').textContent =
-`from ollama import Client
-
-client = Client(
-    host="${psUrl}/v1/ollama",
-    headers={
-        "ps-app-id": "${appId}",
-        "forward-domain": "your-ollama-server-domain",
-    },
-)
-
-response = client.chat(
-    model="llama3.2",
-    messages=[
-        {"role": "user", "content": "Hello"},
-    ],
-)
-print(response["message"]["content"])`;
 
     // Syntax highlight all code blocks
     document.querySelectorAll('.integ-code-wrap code').forEach(el => {

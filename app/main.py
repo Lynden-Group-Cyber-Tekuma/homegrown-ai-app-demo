@@ -55,13 +55,6 @@ from schemas import (
 )
 from token_counter import estimate_message_tokens, estimate_text_tokens
 
-try:
-    import docker as _docker_sdk
-    from docker.errors import DockerException as _DockerException, NotFound as _DockerNotFound, APIError as _DockerAPIError
-    _DOCKER_SDK_AVAILABLE = True
-except ImportError:
-    _DOCKER_SDK_AVAILABLE = False
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-8s %(name)s  %(message)s")
 logger = logging.getLogger("main")
 
@@ -224,16 +217,11 @@ _PROVIDER_URLS = {
 }
 
 
-_OLLAMA_MODEL_IDS      = {s.strip() for s in os.getenv("OLLAMA_MODEL_IDS", "").split(",") if s.strip()}
 _LOCAL_OPENAI_MODEL_IDS: set[str] = set()
 _DISCOVERED_MODELS: dict[str, list[str]] = {}  # provider → [prefixed model IDs like "openai/gpt-4.1"]
-OLLAMA_BASE_URL        = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-COMPOSE_PROJECT_NAME   = os.getenv("COMPOSE_PROJECT_NAME", "homegrown-ai-app-demo")
 
 
 def _detect_provider(model_id: str) -> str:
-    if model_id.startswith("ollama/") or model_id in _OLLAMA_MODEL_IDS:
-        return "ollama"
     if model_id in _LOCAL_OPENAI_MODEL_IDS:
         return "local_openai"
     # Handle explicit provider-prefixed IDs (e.g. from model discovery)
@@ -260,8 +248,6 @@ def _detect_provider(model_id: str) -> str:
 def _model_meta(model_id: str) -> dict:
     """Return category, provider, and required key info for a model."""
     provider = _detect_provider(model_id)
-    if provider == "ollama":
-        return {"category": "local", "provider": "Ollama", "requires_key": None}
     if provider == "local_openai":
         return {"category": "local", "provider": "Local OpenAI", "requires_key": None}
     is_free = model_id.lower().endswith(":free")
@@ -446,7 +432,7 @@ _model_cache: list[dict] = []
 
 
 async def refresh_model_cache() -> list[dict]:
-    global _model_cache, _OLLAMA_MODEL_IDS
+    global _model_cache
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             headers = {}
@@ -461,30 +447,6 @@ async def refresh_model_cache() -> list[dict]:
     except Exception as e:
         logger.warning("Could not reach LiteLLM (%s) — using fallback model list", e)
         _model_cache = []
-
-    # Auto-discover Ollama models directly from the Ollama API.
-    # Any model installed via `ollama pull` will appear automatically
-    # without needing a config.yaml change or LiteLLM restart —
-    # the wildcard `ollama/*` entry in config.yaml routes all of them.
-    if OLLAMA_BASE_URL:
-        try:
-            async with httpx.AsyncClient(timeout=5.0, verify=False) as oclient:
-                r = await oclient.get(f"{OLLAMA_BASE_URL}/api/tags")
-                if r.status_code == 200:
-                    existing_ids = {m["id"] for m in _model_cache}
-                    for om in r.json().get("models", []):
-                        name = om.get("name") or om.get("model", "")
-                        if not name:
-                            continue
-                        full_id = f"ollama/{name}"
-                        if full_id not in existing_ids:
-                            _model_cache.append({"id": full_id})
-                            existing_ids.add(full_id)
-                        _OLLAMA_MODEL_IDS.add(name)  # keep bare-name set in sync
-                    ollama_count = sum(1 for m in _model_cache if m["id"].startswith("ollama/"))
-                    logger.info("Ollama: %d model(s) available", ollama_count)
-        except Exception as e:
-            logger.debug("Could not reach Ollama for model discovery (%s)", e)
 
     # Inject discovered provider models (deduplicate against existing bare names)
     if _DISCOVERED_MODELS:
@@ -655,7 +617,7 @@ async def lifespan(app: FastAPI):
                     pass
 
         # Load hot-swappable application settings
-        global DEFAULT_DAILY_LIMIT, MAX_FILE_SIZE_MB, MAX_FILE_SIZE_BYTES, _OLLAMA_MODEL_IDS, OLLAMA_BASE_URL
+        global DEFAULT_DAILY_LIMIT, MAX_FILE_SIZE_MB, MAX_FILE_SIZE_BYTES
         dl_row = await db.get(AppSetting, "daily_limit")
         if dl_row:
             DEFAULT_DAILY_LIMIT = int(dl_row.value) or None
@@ -663,12 +625,6 @@ async def lifespan(app: FastAPI):
         if mf_row:
             MAX_FILE_SIZE_MB = int(mf_row.value)
             MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-        om_row = await db.get(AppSetting, "ollama_model_ids")
-        if om_row:
-            _OLLAMA_MODEL_IDS = {s.strip() for s in om_row.value.split(",") if s.strip()}
-        ob_row = await db.get(AppSetting, "ollama_base_url")
-        if ob_row:
-            OLLAMA_BASE_URL = ob_row.value
 
         # Load previously discovered provider models
         dm_row = await db.get(AppSetting, "discovered_models")
@@ -813,16 +769,11 @@ async def me(current_user: User = Depends(get_current_user)):
 def _setup_complete(s: dict) -> bool:
     """Return True only when all required items are configured.
 
-    LLM source: at least one provider key OR Ollama enabled with a model saved.
+    LLM source: at least one provider key.
     Encryption key override is advisory (ephemeral fallback works); excluded here
     so a missing override file doesn't trap admins in a login→admin redirect loop.
     """
-    any_provider_key = any(s.get(f"provider_key_{p['id']}") for p in KNOWN_PROVIDERS)
-    ollama_ready = (
-        s.get("ollama_enabled") == "true"
-        and bool(s.get("ollama_model_ids", "").strip())
-    )
-    any_llm = any_provider_key or ollama_ready
+    any_llm = any(s.get(f"provider_key_{p['id']}") for p in KNOWN_PROVIDERS)
     return bool(
         s.get("admin_password_hash")
         and s.get("jwt_secret_enc")
@@ -961,7 +912,7 @@ async def models(current_user: User = Depends(get_current_user)):
     for m in available:
         meta = _model_meta(m["id"])
         provider = _detect_provider(m["id"])
-        key_set = provider == "ollama" or provider in user_providers or provider in shared_providers
+        key_set = provider in user_providers or provider in shared_providers
         enriched.append({**m, **meta, "key_set": key_set})
 
     return {"models": enriched, "fallback": not bool(live)}
@@ -2083,40 +2034,14 @@ async def chat_stream(
 
         # ── Stream (per-user key or shared LiteLLM) ────────────────────────────
         llm, effective_model = _user_llm_client(current_user, model)
-        provider = _detect_provider(effective_model)
         try:
             prompt_tokens = estimate_message_tokens(payload, model=effective_model)
 
-            # For Ollama models we bypass LiteLLM and call Ollama directly.
-            #
-            # LiteLLM is a separate Docker container that acts as a proxy.
-            # Even when our connection to LiteLLM is closed, LiteLLM does not
-            # reliably propagate the cancellation upstream to Ollama — the Ollama
-            # process keeps running and pins the CPU.
-            #
-            # By calling Ollama's OpenAI-compatible endpoint directly we own the
-            # TCP socket.  When the client disconnects we cancel the pump task,
-            # which raises CancelledError inside httpx recv(), the socket closes,
-            # and Ollama's Go HTTP server sees the connection drop and stops the
-            # inference immediately.
-            if provider == "ollama":
-                bare_model = effective_model.removeprefix("ollama/")
-                ollama_direct = AsyncOpenAI(
-                    api_key="ollama",          # Ollama ignores the key
-                    base_url=f"{OLLAMA_BASE_URL}/v1",
-                    timeout=None,              # inference can take a while on CPU
-                )
-                stream = await ollama_direct.chat.completions.create(
-                    model=bare_model,
-                    messages=payload,
-                    stream=True,
-                )
-            else:
-                stream_kwargs = {"model": effective_model, "messages": payload, "stream": True}
-                if llm is litellm_client:
-                    stream_kwargs["stream_options"] = {"include_usage": True}
-                    stream_kwargs["extra_body"] = _litellm_extra(effective_model)
-                stream = await llm.chat.completions.create(**stream_kwargs)
+            stream_kwargs = {"model": effective_model, "messages": payload, "stream": True}
+            if llm is litellm_client:
+                stream_kwargs["stream_options"] = {"include_usage": True}
+                stream_kwargs["extra_body"] = _litellm_extra(effective_model)
+            stream = await llm.chat.completions.create(**stream_kwargs)
 
             # ── Cancellation-aware drain loop ─────────────────────────────────
             # A plain `async for chunk in stream` blocks inside httpx recv()
@@ -2779,9 +2704,6 @@ def _parse_app_settings(s: dict) -> dict:
         # Application settings
         "daily_limit": int(s["daily_limit"]) if s.get("daily_limit") else DEFAULT_DAILY_LIMIT,
         "max_file_mb": int(s["max_file_mb"]) if s.get("max_file_mb") else MAX_FILE_SIZE_MB,
-        "ollama_enabled": s.get("ollama_enabled", "false") == "true",
-        "ollama_base_url": s.get("ollama_base_url", OLLAMA_BASE_URL),
-        "ollama_model_ids": s.get("ollama_model_ids", ",".join(sorted(_OLLAMA_MODEL_IDS))),
         "wizard_completed": s.get("wizard_completed") == "true",
         "scenarios_sync_url": s.get("scenarios_sync_url", "https://raw.githubusercontent.com/prompt-security/homegrown-ai-app-demo/main/app/data/scenarios.json"),
         "scenarios_sync_branch": s.get("scenarios_sync_branch", "main"),
@@ -3020,9 +2942,6 @@ async def clear_litellm_key(
 class ApplicationSettingsUpdate(BaseModel):
     daily_limit: int | None = None
     max_file_mb: int | None = None
-    ollama_enabled: bool | None = None
-    ollama_base_url: str | None = None
-    ollama_model_ids: str | None = None
 
 
 @app.patch("/admin/application-settings")
@@ -3031,7 +2950,7 @@ async def update_application_settings(
     admin: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    global DEFAULT_DAILY_LIMIT, MAX_FILE_SIZE_MB, MAX_FILE_SIZE_BYTES, _OLLAMA_MODEL_IDS, OLLAMA_BASE_URL
+    global DEFAULT_DAILY_LIMIT, MAX_FILE_SIZE_MB, MAX_FILE_SIZE_BYTES
 
     async def _upsert(key: str, value: str) -> None:
         existing = await db.get(AppSetting, key)
@@ -3053,363 +2972,10 @@ async def update_application_settings(
         MAX_FILE_SIZE_MB = body.max_file_mb
         MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
-    if body.ollama_enabled is not None:
-        await _upsert("ollama_enabled", "true" if body.ollama_enabled else "false")
-
-    if body.ollama_base_url is not None:
-        url = body.ollama_base_url.strip().rstrip("/")
-        if url and not url.startswith(("http://", "https://")):
-            raise HTTPException(status_code=422, detail="ollama_base_url must start with http:// or https://")
-        await _upsert("ollama_base_url", url)
-        OLLAMA_BASE_URL = url
-
-    if body.ollama_model_ids is not None:
-        ids = body.ollama_model_ids.strip()
-        await _upsert("ollama_model_ids", ids)
-        _OLLAMA_MODEL_IDS = {s.strip() for s in ids.split(",") if s.strip()}
-        # Ensure the wildcard entry is in config.yaml (idempotent; no restart needed)
-        model_id_list = [s.strip() for s in ids.split(",") if s.strip()]
-        try:
-            _update_litellm_ollama_models(model_id_list)
-        except Exception as exc:
-            logger.warning("Could not update LiteLLM config: %s", exc)
-        # Refresh model cache so new models appear immediately
-        asyncio.create_task(refresh_model_cache())
-
     await db.commit()
     await _log_audit(db, admin.id, admin.email, "application_settings_changed", "Application settings updated via admin UI")
     await db.commit()
     return {"ok": True, "litellm_restarting": False}
-
-
-# ── LiteLLM config + restart helpers ─────────────────────────────────────────
-
-LITELLM_CONFIG_PATH = Path(os.getenv("LITELLM_CONFIG_PATH", "/app/litellm/config.yaml"))
-
-
-def _update_litellm_ollama_models(model_ids: list[str]) -> None:
-    """Ensure the wildcard Ollama entry exists in litellm/config.yaml.
-
-    With wildcard routing (ollama/*), LiteLLM can route any Ollama model
-    without per-model config entries or a restart.  Individual model_ids
-    are now discovered at runtime from the Ollama API; we only need to
-    guarantee the catch-all wildcard entry is present.
-    """
-    import yaml  # pyyaml — available at runtime inside the container
-
-    if not LITELLM_CONFIG_PATH.exists():
-        logger.warning("LiteLLM config not found at %s — skipping YAML update", LITELLM_CONFIG_PATH)
-        return
-
-    cfg = yaml.safe_load(LITELLM_CONFIG_PATH.read_text()) or {}
-    model_list = cfg.get("model_list", [])
-
-    # Remove any individual ollama entries (legacy) and any old wildcard
-    model_list = [
-        m for m in model_list
-        if not str(m.get("litellm_params", {}).get("model", "")).startswith("ollama/")
-    ]
-
-    # Always write a single wildcard entry — routes every Ollama model
-    model_list.append({
-        "model_name": "ollama/*",
-        "litellm_params": {
-            "model": "ollama/*",
-            "api_base": "os.environ/OLLAMA_BASE_URL",
-        },
-    })
-
-    cfg["model_list"] = model_list
-    LITELLM_CONFIG_PATH.write_text(
-        yaml.dump(cfg, default_flow_style=False, allow_unicode=True, sort_keys=False)
-    )
-    logger.info("Ensured ollama/* wildcard entry in litellm/config.yaml")
-
-
-@app.post("/admin/ollama/test")
-async def test_ollama_connection(
-    body: dict,
-    admin: User = Depends(require_admin),
-):
-    """Probe an Ollama instance and return its available model names."""
-    url = (body.get("url") or OLLAMA_BASE_URL).strip().rstrip("/")
-    if not url.startswith(("http://", "https://")):
-        raise HTTPException(status_code=422, detail="URL must start with http:// or https://")
-    try:
-        async with httpx.AsyncClient(timeout=8.0, verify=False) as client:
-            resp = await client.get(f"{url}/api/tags")
-        if resp.status_code != 200:
-            raise HTTPException(status_code=502, detail=f"Ollama returned HTTP {resp.status_code}")
-        data = resp.json()
-        models = [m["name"] for m in data.get("models", [])]
-        return {"ok": True, "models": models, "url": url}
-    except httpx.ConnectError:
-        raise HTTPException(status_code=502, detail="Could not connect — is Ollama running?")
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="Connection timed out")
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
-
-
-def _get_docker_client():
-    """Connect to Docker daemon via socket. Raises HTTP 503 if unavailable."""
-    if not _DOCKER_SDK_AVAILABLE:
-        raise HTTPException(status_code=503, detail="docker Python SDK not installed")
-    try:
-        return _docker_sdk.from_env()
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"Docker socket unavailable: {exc}")
-
-
-def _find_ollama_container(client):
-    """Find the Ollama container for this compose project. Returns None if not found."""
-    try:
-        containers = client.containers.list(
-            all=True,
-            filters={"label": [
-                "com.docker.compose.service=ollama",
-                f"com.docker.compose.project={COMPOSE_PROJECT_NAME}",
-            ]},
-        )
-        if containers:
-            return containers[0]
-        # Fallback: any container whose name contains "ollama"
-        for c in client.containers.list(all=True):
-            if "ollama" in c.name.lower():
-                return c
-    except Exception:
-        pass
-    return None
-
-
-@app.get("/admin/ollama/service")
-async def get_ollama_service_status(admin: User = Depends(require_admin)):
-    """Return the status of the Ollama Docker container."""
-    if not _DOCKER_SDK_AVAILABLE:
-        return {"status": "docker_unavailable", "detail": "docker SDK not installed"}
-    try:
-        client = _get_docker_client()
-    except HTTPException:
-        return {"status": "docker_unavailable", "detail": "Docker socket not mounted"}
-    try:
-        c = _find_ollama_container(client)
-        if c is None:
-            return {"status": "not_found", "container_name": None}
-        c.reload()
-        return {"status": c.status, "container_name": c.name, "id": c.short_id}
-    except Exception as exc:
-        logger.warning("Ollama status check error: %s", exc)
-        return {"status": "error", "detail": "Could not retrieve Ollama container status."}
-
-
-@app.post("/admin/ollama/service/start")
-async def start_ollama_service(admin: User = Depends(require_admin)):
-    """Start (or create) the Ollama Docker container."""
-    client = _get_docker_client()
-    try:
-        c = _find_ollama_container(client)
-        if c is not None:
-            c.reload()
-            if c.status != "running":
-                try:
-                    c.start()
-                    c.reload()
-                except Exception as start_exc:
-                    # Stale network reference (e.g. after docker compose down -v).
-                    # Remove the broken container and fall through to recreate it.
-                    if "network" in str(start_exc).lower():
-                        logger.warning("Ollama container has stale network — removing and recreating: %s", start_exc)
-                        try:
-                            c.remove(force=True)
-                        except Exception:
-                            pass
-                        c = None
-                    else:
-                        raise
-            if c is not None:
-                return {"ok": True, "action": "started", "container": c.name, "status": c.status}
-        # Container doesn't exist (or was just removed due to stale network) — create it fresh
-        volume_name = f"{COMPOSE_PROJECT_NAME}_ollama_data"
-        try:
-            client.volumes.get(volume_name)
-        except Exception:
-            client.volumes.create(volume_name)
-
-        # Find the host project root by inspecting the app container's /app bind mount,
-        # then look for certs/corporate-ca.pem so we can inject it into Ollama.
-        ollama_volumes = {volume_name: {"bind": "/root/.ollama", "mode": "rw"}}
-        ollama_env = {"OLLAMA_INSECURE": "true"}
-        try:
-            app_cs = client.containers.list(filters={"label": [
-                "com.docker.compose.service=app",
-                f"com.docker.compose.project={COMPOSE_PROJECT_NAME}",
-            ]})
-            if app_cs:
-                for m in app_cs[0].attrs.get("Mounts", []):
-                    if m.get("Type") == "bind" and m.get("Destination") == "/app":
-                        host_project_root = os.path.dirname(m["Source"])
-                        cert_host_path = os.path.join(host_project_root, "certs", "corporate-ca.pem")
-                        ollama_volumes[cert_host_path] = {"bind": "/certs/corporate-ca.pem", "mode": "ro"}
-                        ollama_env["SSL_CERT_FILE"] = "/certs/corporate-ca.pem"
-                        break
-        except Exception:
-            pass
-
-        c = client.containers.run(
-            "ollama/ollama:latest",
-            name=f"{COMPOSE_PROJECT_NAME}-ollama-1",
-            detach=True,
-            ports={"11434/tcp": 11434},
-            volumes=ollama_volumes,
-            environment=ollama_env,
-            labels={
-                "com.docker.compose.service": "ollama",
-                "com.docker.compose.project": COMPOSE_PROJECT_NAME,
-            },
-            restart_policy={"Name": "unless-stopped"},
-        )
-        # Attach to the Compose project network so other services can reach
-        # it via the "ollama" hostname. Find the network by inspecting the
-        # app container — that's guaranteed to be on the right network.
-        try:
-            app_containers = client.containers.list(
-                filters={"label": [
-                    "com.docker.compose.service=app",
-                    f"com.docker.compose.project={COMPOSE_PROJECT_NAME}",
-                ]}
-            )
-            if app_containers:
-                app_net_names = list(app_containers[0].attrs["NetworkSettings"]["Networks"].keys())
-                if app_net_names:
-                    client.networks.get(app_net_names[0]).connect(c, aliases=["ollama"])
-        except Exception:
-            pass  # non-fatal: container is running, just may not be on compose network
-        return {"ok": True, "action": "created", "container": c.name, "status": c.status}
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
-
-
-@app.post("/admin/ollama/service/stop")
-async def stop_ollama_service(admin: User = Depends(require_admin)):
-    """Stop the Ollama Docker container."""
-    client = _get_docker_client()
-    try:
-        c = _find_ollama_container(client)
-        if c is None:
-            raise HTTPException(status_code=404, detail="Ollama container not found")
-        c.stop(timeout=10)
-        return {"ok": True, "action": "stopped"}
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
-
-
-# Tracks in-flight pulls: model_name -> asyncio.Event (set = cancel requested)
-_active_pulls: dict[str, asyncio.Event] = {}
-
-
-@app.post("/admin/ollama/pull")
-async def pull_ollama_model(
-    body: dict,
-    admin: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Stream model pull progress from the Ollama API."""
-    model = (body.get("model") or "").strip()
-    if not model:
-        raise HTTPException(status_code=422, detail="Model name required")
-    row = await db.get(AppSetting, "ollama_base_url")
-    base_url = (row.value if row else OLLAMA_BASE_URL).rstrip("/")
-
-    cancel_event = asyncio.Event()
-    _active_pulls[model] = cancel_event
-
-    async def _stream():
-        cancelled = False
-        try:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(600.0, connect=10.0), verify=False
-            ) as client:
-                async with client.stream(
-                    "POST",
-                    f"{base_url}/api/pull",
-                    json={"model": model, "name": model, "stream": True},
-                ) as resp:
-                    logger.info("Ollama pull %s → HTTP %s", model, resp.status_code)
-                    async for line in resp.aiter_lines():
-                        if cancel_event.is_set():
-                            cancelled = True
-                            logger.info("Ollama pull %s cancelled by user", model)
-                            break
-                        if line:
-                            logger.debug("Ollama pull line: %s", line[:120])
-                            yield f"data: {line}\n\n"
-                    if not cancelled:
-                        logger.info("Ollama pull stream ended for %s", model)
-        except httpx.ConnectError:
-            yield 'data: {"status":"error","error":"Cannot connect to Ollama — is the service running?"}\n\n'
-            return
-        except Exception as exc:
-            yield f'data: {{"status":"error","error":"{str(exc)}"}}\n\n'
-            return
-        finally:
-            _active_pulls.pop(model, None)
-
-        if cancelled:
-            # Ollama stores partial blobs internally — DELETE /api/delete only removes
-            # complete models with a manifest, so there is no API to remove partial blobs.
-            # The stream is stopped; Ollama will resume from the checkpoint if pulled again.
-            yield 'data: {"status":"cancelled"}\n\n'
-            return
-
-        yield 'data: {"status":"done"}\n\n'
-
-    return StreamingResponse(_stream(), media_type="text/event-stream")
-
-
-@app.delete("/admin/ollama/pull")
-async def cancel_ollama_pull(
-    body: dict,
-    admin: User = Depends(require_admin),
-):
-    """Cancel an in-flight model pull."""
-    model = (body.get("model") or "").strip()
-    if not model:
-        raise HTTPException(status_code=422, detail="Model name required")
-    event = _active_pulls.get(model)
-    if event:
-        event.set()
-        return {"cancelling": True}
-    return {"cancelling": False}
-
-
-@app.delete("/admin/ollama/model")
-async def delete_ollama_model(
-    body: dict,
-    admin: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Delete a local Ollama model."""
-    model = (body.get("model") or "").strip()
-    if not model:
-        raise HTTPException(status_code=422, detail="Model name required")
-    row = await db.get(AppSetting, "ollama_base_url")
-    base_url = (row.value if row else OLLAMA_BASE_URL).rstrip("/")
-    try:
-        async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
-            resp = await client.request(
-                "DELETE",
-                f"{base_url}/api/delete",
-                json={"name": model},
-            )
-        if resp.status_code not in (200, 204):
-            raise HTTPException(status_code=resp.status_code, detail=f"Ollama returned {resp.status_code}")
-    except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail="Cannot connect to Ollama — is the service running?")
-    return {"deleted": model}
 
 
 # ── LLM Provider Key management ──────────────────────────────────────────────
@@ -3783,7 +3349,7 @@ async def guest_models():
     for m in available:
         meta = _model_meta(m["id"])
         provider = _detect_provider(m["id"])
-        key_set = provider == "ollama" or provider in shared_providers
+        key_set = provider in shared_providers
         enriched.append({**m, **meta, "key_set": key_set})
     return {"models": enriched, "fallback": not bool(live)}
 
