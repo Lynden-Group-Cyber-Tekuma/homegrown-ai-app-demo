@@ -1,0 +1,23 @@
+# Lightweight single-container variant: the app with a file-based SQLite
+# database instead of Postgres. No db service required.
+#
+# Run with:   docker compose -f docker-compose.sqlite.yml up -d --build
+# The database file lives at ./app/data/hgapp.db (via the ./app bind mount)
+# and survives container restarts.
+services:
+  app:
+    build: .
+    ports:
+      - "9100:8000"
+    user: "0"   # entrypoint needs root to prepare /app/data, then drops to appuser via gosu
+    volumes:
+      - ./app:/app
+    environment:
+      DB_BACKEND: sqlite
+      # Optional: override the SQLite file location (defaults to /app/data/hgapp.db)
+      # SQLITE_PATH: /app/data/hgapp.db
+      # Fernet key for encrypting secrets at rest (PS API keys, LLM keys, JWT secret).
+      # Generate:  python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    restart: unless-stopped

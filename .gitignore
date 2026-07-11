@@ -4,6 +4,9 @@ __pycache__/
 *.pyo
 .DS_Store
 pgdata/
+app/data/*.db
+app/data/*.db-wal
+app/data/*.db-shm
 *.egg-info/
 .venv/
 docker-compose.yml

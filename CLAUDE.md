@@ -27,6 +27,12 @@ pip install -r requirements.txt
 cd app && uvicorn main:app --reload --port 8000
 ```
 
+### Run with SQLite (no Postgres at all)
+```bash
+cd app && DB_BACKEND=sqlite uvicorn main:app --reload --port 8000   # file at app/data/hgapp.db
+docker compose -f docker-compose.sqlite.yml up -d --build            # single-container Docker variant
+```
+
 ### Run tests
 ```bash
 pip install -r requirements-test.txt
@@ -74,12 +80,17 @@ Top-level support modules (imported flat because `app/` is the working directory
 **Audit log:** Config changes (PS settings, LLM keys, user/tenant CRUD) write `AuditEvent` rows alongside chat `Message` rows; both appear in the admin activity log.
 
 ### Environment variables that change runtime behavior
+- `DB_BACKEND` — `sqlite` switches to file-based SQLite; default is Postgres
+- `SQLITE_PATH` — SQLite file location (default `app/data/hgapp.db`)
+- `DATABASE_URL` — full SQLAlchemy async URL; takes precedence over `DB_BACKEND`
 - `SHOW_LLM_KEY_SETTINGS` — shows per-user LLM key fields in the UI
 - `APP_ENV` / `ENV` — used for environment detection
 - `DEFAULT_DAILY_LIMIT` — per-user message cap (null = unlimited)
 - `MAX_FILE_SIZE_MB` — upload size limit (default 10 MB)
 - `SANITIZE_MAX_PER_MINUTE` — rate limit for file scans per user (default 5)
 - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY` / `PERPLEXITY_API_KEY` / `OPENROUTER_API_KEY` — shared provider keys (can also be set via Admin → Settings)
+
+See `.env.example` at the repo root for the complete annotated list.
 
 ---
 

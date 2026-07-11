@@ -24,24 +24,27 @@ async def lifespan(app: FastAPI):
     _validate_security_bootstrap_config()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Schema migrations: make user_id nullable and add guest_id columns
-        for sql in [
-            "ALTER TABLE chat_sessions ALTER COLUMN user_id DROP NOT NULL",
-            "ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS guest_id VARCHAR(255)",
-            "CREATE INDEX IF NOT EXISTS ix_chat_sessions_guest_id ON chat_sessions (guest_id)",
-            "ALTER TABLE messages ALTER COLUMN user_id DROP NOT NULL",
-            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS guest_id VARCHAR(255)",
-            "CREATE INDEX IF NOT EXISTS ix_messages_guest_id ON messages (guest_id)",
-            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER",
-            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS completion_tokens INTEGER",
-            "ALTER TABLE messages ADD COLUMN IF NOT EXISTS total_tokens INTEGER",
-            "ALTER TABLE audit_events ALTER COLUMN detail TYPE TEXT",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE",
-        ]:
-            try:
-                await conn.execute(text(sql))
-            except Exception as e:
-                logger.debug("Migration skipped (%s): %s", sql[:60], e)
+        # Legacy schema migrations for pre-existing Postgres databases
+        # (Postgres dialect only — a fresh SQLite database is fully created
+        # by create_all above and needs none of these).
+        if engine.dialect.name == "postgresql":
+            for sql in [
+                "ALTER TABLE chat_sessions ALTER COLUMN user_id DROP NOT NULL",
+                "ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS guest_id VARCHAR(255)",
+                "CREATE INDEX IF NOT EXISTS ix_chat_sessions_guest_id ON chat_sessions (guest_id)",
+                "ALTER TABLE messages ALTER COLUMN user_id DROP NOT NULL",
+                "ALTER TABLE messages ADD COLUMN IF NOT EXISTS guest_id VARCHAR(255)",
+                "CREATE INDEX IF NOT EXISTS ix_messages_guest_id ON messages (guest_id)",
+                "ALTER TABLE messages ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER",
+                "ALTER TABLE messages ADD COLUMN IF NOT EXISTS completion_tokens INTEGER",
+                "ALTER TABLE messages ADD COLUMN IF NOT EXISTS total_tokens INTEGER",
+                "ALTER TABLE audit_events ALTER COLUMN detail TYPE TEXT",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE",
+            ]:
+                try:
+                    await conn.execute(text(sql))
+                except Exception as e:
+                    logger.debug("Migration skipped (%s): %s", sql[:60], e)
 
     async with AsyncSessionLocal() as db:
         existing = await db.scalar(select(User).where(User.role == "admin"))

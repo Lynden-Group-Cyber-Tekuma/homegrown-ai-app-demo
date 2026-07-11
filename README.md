@@ -102,6 +102,36 @@ Both modes can be active simultaneously — the chat UI shows a identification o
 
 ---
 
+## Database backends
+
+The app runs on **PostgreSQL** (default) or **SQLite** - selected by environment variable, no code changes.
+
+| Variable | Effect |
+| -------- | ------ |
+| *(none)* | PostgreSQL from `docker-compose.yml` (`db` service) |
+| `DB_BACKEND=sqlite` | File-based SQLite at `app/data/hgapp.db` |
+| `SQLITE_PATH=/path/to/file.db` | Custom SQLite file location (with `DB_BACKEND=sqlite`) |
+| `DATABASE_URL=...` | Any SQLAlchemy async URL - takes precedence over `DB_BACKEND` |
+
+### SQLite via Docker (single container, no Postgres)
+
+```bash
+docker compose -f docker-compose.sqlite.yml up -d --build
+```
+
+The database file lives at `./app/data/hgapp.db` on the host (via the bind mount) and survives container restarts. SQLite runs in WAL mode with foreign-key enforcement on, matching Postgres behaviour.
+
+### SQLite for local development (no Docker at all)
+
+```bash
+pip install -r requirements.txt
+cd app && DB_BACKEND=sqlite uvicorn main:app --reload --port 8000
+```
+
+SQLite is well suited to demos, laptops, and single-user installs. Stay on PostgreSQL for multi-user deployments with concurrent writers.
+
+---
+
 ## LLM Providers & Models
 
 ### Direct provider routing (model discovery)

@@ -1,7 +1,10 @@
 """Tests for model categorization and metadata — Sprint 3."""
 
 import os
+
 import pytest
+
+from src.llm.routing import _detect_provider, _model_meta
 
 
 @pytest.fixture(autouse=True)
@@ -14,7 +17,6 @@ def _chdir_to_app():
 
 
 def test_detect_provider_openai():
-    from src.llm.routing import _detect_provider
     assert _detect_provider("gpt-4o") == "openai"
     assert _detect_provider("gpt-4o-mini") == "openai"
     assert _detect_provider("o1-preview") == "openai"
@@ -22,19 +24,16 @@ def test_detect_provider_openai():
 
 
 def test_detect_provider_anthropic():
-    from src.llm.routing import _detect_provider
     assert _detect_provider("claude-3-5-sonnet-20241022") == "anthropic"
     assert _detect_provider("claude-3-5-haiku-20241022") == "anthropic"
 
 
 def test_detect_provider_google():
-    from src.llm.routing import _detect_provider
     assert _detect_provider("gemini-2.0-flash") == "google"
     assert _detect_provider("gemini-1.5-pro") == "google"
 
 
 def test_detect_provider_openrouter_default():
-    from src.llm.routing import _detect_provider
     assert _detect_provider("meta-llama/llama-3.1-8b-instruct:free") == "openrouter"
     assert _detect_provider("nvidia/nemotron-nano-9b-v2:free") == "openrouter"
     assert _detect_provider("mistralai/mistral-7b-instruct:free") == "openrouter"
@@ -42,7 +41,6 @@ def test_detect_provider_openrouter_default():
 
 def test_detect_provider_prefixed():
     """Discovered models carry an explicit provider/ prefix."""
-    from src.llm.routing import _detect_provider
     assert _detect_provider("openai/gpt-4.1") == "openai"
     assert _detect_provider("anthropic/claude-opus-4-5-20250929") == "anthropic"
     assert _detect_provider("perplexity/sonar") == "perplexity"
@@ -50,7 +48,6 @@ def test_detect_provider_prefixed():
 
 
 def test_model_meta_free():
-    from src.llm.routing import _model_meta
     meta = _model_meta("meta-llama/llama-3.1-8b-instruct:free")
     assert meta["category"] == "free"
     assert meta["provider"] == "OpenRouter"
@@ -58,7 +55,6 @@ def test_model_meta_free():
 
 
 def test_model_meta_paid_openai():
-    from src.llm.routing import _model_meta
     meta = _model_meta("gpt-4o")
     assert meta["category"] == "paid"
     assert meta["provider"] == "OpenAI"
@@ -66,7 +62,6 @@ def test_model_meta_paid_openai():
 
 
 def test_model_meta_paid_anthropic():
-    from src.llm.routing import _model_meta
     meta = _model_meta("claude-3-5-sonnet-20241022")
     assert meta["category"] == "paid"
     assert meta["provider"] == "Anthropic"
@@ -74,7 +69,6 @@ def test_model_meta_paid_anthropic():
 
 
 def test_model_meta_paid_google():
-    from src.llm.routing import _model_meta
     meta = _model_meta("gemini-2.0-flash")
     assert meta["category"] == "paid"
     assert meta["provider"] == "Google"
@@ -82,7 +76,6 @@ def test_model_meta_paid_google():
 
 
 def test_model_meta_paid_openrouter():
-    from src.llm.routing import _model_meta
     meta = _model_meta("qwen/qwen-2.5-72b-instruct")
     assert meta["category"] == "paid"
     assert meta["provider"] == "OpenRouter"
@@ -91,7 +84,6 @@ def test_model_meta_paid_openrouter():
 
 def test_free_suffix_detection():
     """Any model ending in :free should be categorized as free."""
-    from src.llm.routing import _model_meta
     for model_id in [
         "nvidia/nemotron-nano-9b-v2:free",
         "mistralai/mistral-7b-instruct:free",

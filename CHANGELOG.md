@@ -1,7 +1,12 @@
 # Changelog
 
 ## [2026-07-11]
+### Added
+- SQLite can now be used as the database besides PostgreSQL. Set `DB_BACKEND=sqlite` for a file-based database at `app/data/hgapp.db` (custom location via `SQLITE_PATH`), or pass any SQLAlchemy async URL via `DATABASE_URL`, which takes precedence; the admin override file still wins over both. SQLite connections enable foreign-key enforcement (Postgres parity) and WAL journal mode; `pool_pre_ping` is applied only to networked databases; the legacy startup ALTER-TABLE migrations now run on the Postgres dialect only. New `docker-compose.sqlite.yml` runs the app as a single container with no Postgres service; `aiosqlite` promoted from test-only to a runtime dependency; SQLite artifacts gitignored; README "Database backends" section and CLAUDE.md run instructions added; new `tests/test_database_backend.py` covers URL-resolution precedence and a file-SQLite schema round-trip - @duc.do
+- `.env.example` at the repo root documenting every environment variable the app reads (security keys, database selection, provider keys, limits, SMTP) with generation commands and defaults - @duc.do
+
 ### Changed
+- Test suite import hygiene: function-local `import` statements scattered through `tests/test_models.py` and `tests/test_security_hardening.py` hoisted to module-level imports with the correct post-refactor paths (`src.llm.routing`, `src.core.config/security`, `src.services.ps`) - @duc.do
 - Refactored the 4,000-line single-file `app/main.py` into an `app/src/` package tree, splitting every `# ── Section ──` block into its own module: `src/core/` (config, security, lifespan), `src/llm/` (routing, catalog, discovery), `src/services/` (audit, serializers, ps, email_service, file_extract, sanitize_guard, scenarios_seed) and `src/routes/` (17 APIRouter modules - auth, system, users_me, admin_users, admin_tenants, admin_stats, sessions, uploads, chat, sanitize, activity, app_settings, provider_keys, email, guest, scenarios, html); every new folder has an `__init__.py`. `main.py` is now a ~25-line entrypoint that builds the FastAPI app and includes all routers, so `uvicorn main:app` and the Docker setup are unchanged. Runtime-mutable settings moved to `src/core/config.py` and are accessed as `config.X` attributes so admin PATCHes and test monkeypatching keep working; route parity verified (79 routes before and after) and all tests updated to patch the new module paths - @duc.do
 
 ### Removed
